@@ -12,6 +12,17 @@ Everything runs in the browser. There is no server and no account. **My stories*
 
 ## Run it
 
+### Easiest: one file, nothing to install
+
+Open **`standalone/StoryBox.html`** (in this repo) by double-clicking it. It is the whole app in a single file and runs in Chrome or Edge with no Node.js, no server and no internet. On GitHub: open the file → the **⬇ Download raw file** button → double-click the downloaded file.
+
+* Stories are saved in that browser on that computer. Keep using the same browser (Chrome/Edge) and **don't rename or move the file between uses** if you can avoid it, since the browser links saved stories to where the file lives. Use **Project → Save file…** now and then for a backup.
+* The browser asks permission to use the microphone, and may ask again each time you open the file.
+* It can't be "installed" or work as an offline app the way the https version does; it doesn't need to, since it is already a local file.
+* It is a snapshot of the app. To refresh it after changes, run `npm run build:standalone`, or download **StoryBox-single-file** from the latest *Build and publish* run in the Actions tab.
+
+### Developers: run from source
+
 Requires Node 20+.
 
 ```bash
@@ -70,11 +81,13 @@ Choices are 720p or 1080p at 30 fps.
 
 A deployed copy is worth having: the **microphone only works on https** (or `localhost`), it can be **added to an iPad/iPhone/Android home screen** like an app, it **keeps working offline** after the first visit, and installed apps are less likely to have their saved stories cleared by the browser.
 
-**GitHub Pages (free for public repos; private repos need a paid GitHub plan):** the workflow in `.github/workflows/deploy.yml` builds and publishes the app.
+Every push to `main` is built by `.github/workflows/deploy.yml`, which always attaches two downloads to the run (Actions tab → the run → *Artifacts*): **StoryBox-single-file** (the double-click file above) and **storybox-site** (the full website as a ZIP, for any static host).
 
-1. Merge this branch into `main`.
-2. In the repository: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. The *Deploy to GitHub Pages* workflow runs on every push to `main` (or run it by hand from the *Actions* tab). Your app appears at `https://<your-user>.github.io/<repo>/`.
+**GitHub Pages (optional; free for public repos, paid plan needed for private ones):**
+
+1. In the repository: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+2. **Settings → Secrets and variables → Actions → Variables → New repository variable**: name `DEPLOY_PAGES`, value `true`.
+3. Push to `main` (or run the workflow by hand from the *Actions* tab). Your app appears at `https://<your-user>.github.io/<repo>/`.
 
 **Anywhere else:** run `npm run build` and upload the `dist/` folder to any static host (Netlify Drop, Cloudflare Pages, a school/web server). The build uses relative links, so it works at a site root or in a sub-folder.
 
@@ -109,6 +122,7 @@ src/thumb.ts        library picture thumbnails
 src/transport.ts    play / pause / seek
 src/ui/             React UI: Stage, Timeline, Library (side panel), VoicePanel, Narration,
                     Stories, Inspector, Dialogs, ErrorBoundary
+scripts/             inline-build.mjs (single-file build), to-mp4.sh (video converter)
 public/             app manifest, icons, service worker (offline); vite.config.ts bakes the file list into it
 .github/workflows/  deploy.yml (GitHub Pages)
 ```

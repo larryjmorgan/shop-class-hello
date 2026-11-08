@@ -1,6 +1,13 @@
-# Publishes StoryBox Studio to GitHub Pages (https) whenever main changes.
-# One-time setup in the repo: Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
-name: Deploy to GitHub Pages
+# Builds StoryBox Studio on every change to main.
+#
+# 0) ALWAYS: also attaches "StoryBox-single-file": one StoryBox.html you can double-click (no install, no server).
+# 1) ALWAYS: attaches the finished website as a downloadable ZIP ("storybox-site") to the run.
+#    Open the repo's Actions tab -> the latest run -> Artifacts. Unzip it and upload the folder to any
+#    static web host (Netlify, Cloudflare Pages, ...). Works for private repositories; nothing to install.
+# 2) OPTIONAL: also publish to GitHub Pages. Needs a public repo (or a paid GitHub plan for private ones).
+#    Turn it on with: Settings -> Pages -> Source: "GitHub Actions", then
+#    Settings -> Secrets and variables -> Actions -> Variables -> New variable  DEPLOY_PAGES = true
+name: Build and publish
 
 on:
   push:
@@ -28,13 +35,35 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+
+      # (0) the double-click single file
+      - run: node scripts/inline-build.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StoryBox-single-file
+          path: standalone/StoryBox.html
+          if-no-files-found: error
+          retention-days: 30
+
+      # (1) the downloadable website
+      - uses: actions/upload-artifact@v4
+        with:
+          name: storybox-site
+          path: dist
+          if-no-files-found: error
+          retention-days: 30
+
+      # (2) GitHub Pages, only when switched on
       - uses: actions/configure-pages@v5
+        if: ${{ vars.DEPLOY_PAGES == 'true' }}
       - uses: actions/upload-pages-artifact@v3
+        if: ${{ vars.DEPLOY_PAGES == 'true' }}
         with:
           path: dist
 
-  deploy:
+  deploy-pages:
     needs: build
+    if: ${{ vars.DEPLOY_PAGES == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages

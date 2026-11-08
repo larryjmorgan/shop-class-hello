@@ -12,7 +12,7 @@ document.addEventListener('visibilitychange', () => document.visibilityState ===
 requestPersistentStorage();
 
 // Offline support + "Add to Home Screen". Production builds only, so development is never served from a cache.
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+if (import.meta.env.PROD && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch((e) => console.warn('Offline mode unavailable:', e));
   });
