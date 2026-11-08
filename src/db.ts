@@ -52,6 +52,15 @@ export async function getBlob(key: string): Promise<Blob | undefined> {
   }
 }
 
+export async function deleteBlob(key: string): Promise<void> {
+  memory.delete(key);
+  try {
+    await run('readwrite', (s) => s.delete(key));
+  } catch {
+    /* nothing to delete, or storage blocked */
+  }
+}
+
 /** Ask the browser not to evict our data when the device is low on space (best effort; Safari may ignore). */
 export function requestPersistentStorage(): void {
   try { void navigator.storage?.persist?.(); } catch { /* not supported */ }

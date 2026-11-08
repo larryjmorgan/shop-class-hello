@@ -210,6 +210,24 @@ export function emptyProject(title = 'My Story'): Project {
   return { version: 1, title, duration: 30, duckMusic: true, objects: [], backgrounds: [], audio: [] };
 }
 
+/** Voice lines that still use a computer voice (they play in the editor but are silent in a video), in story order. */
+export function draftLines(p: Project): AudioClip[] {
+  return p.audio.filter((c) => c.kind === 'voice' && c.provider === 'browser').sort((a, b) => a.start - b.start);
+}
+
+/** Voice lines that overlap another voice line (two people talking over each other). */
+export function overlappingVoiceLines(p: Project, slack = 0.05): AudioClip[] {
+  const v = p.audio.filter((c) => c.kind === 'voice').sort((a, b) => a.start - b.start);
+  const out = new Set<AudioClip>();
+  for (let i = 0; i < v.length; i++) {
+    for (let j = i + 1; j < v.length && v[j].start < v[i].start + v[i].duration - slack; j++) {
+      out.add(v[i]);
+      out.add(v[j]);
+    }
+  }
+  return v.filter((c) => out.has(c));
+}
+
 /** Greedy lane assignment so overlapping clips are drawn on separate rows. */
 export function assignLanes<T extends { id: string }>(items: T[], startOf: (i: T) => number, endOf: (i: T) => number): { lanes: Map<string, number>; count: number } {
   const sorted = [...items].sort((a, b) => startOf(a) - startOf(b));

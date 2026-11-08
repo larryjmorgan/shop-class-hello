@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { elevenVoices, findMissingAudio, getElevenKey, setElevenKey } from '../audio';
 import { countBrowserVoices, exportVideo, pickMime } from '../exporter';
-import { fmtTime, type AudioClip } from '../model';
+import { draftLines, fmtTime, type AudioClip } from '../model';
 import { safeName } from '../projectFile';
 import { pause } from '../transport';
-import { useStore } from '../store';
+import { openNarration, useStore } from '../store';
 
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', k);
@@ -14,7 +14,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
   }, [onClose]);
   return (
     <div className="modal-back" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-label={title}>
+      <div className={`modal${wide ? ' wide' : ''}`} role="dialog" aria-label={title}>
         <header><h2>{title}</h2><button className="btn small" onClick={onClose} aria-label="Close">✕</button></header>
         {children}
       </div>
@@ -115,7 +115,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           </label>
           <ul className="notes">
             <li>Exporting runs in <b>real time</b>: about {Math.ceil(project.duration)} seconds. Keep this tab open and visible until it finishes.</li>
-            {silent > 0 && <li className="warn">⚠ {silent} voice clip{silent > 1 ? 's use' : ' uses'} a computer voice, which browsers can’t record. {silent > 1 ? 'They' : 'It'} will be <b>silent</b> in the video. Re-do {silent > 1 ? 'them' : 'it'} with ElevenLabs or the microphone.</li>}
+            {silent > 0 && <li className="warn">⚠ {silent} voice clip{silent > 1 ? 's use' : ' uses'} a computer voice, which browsers can’t record. {silent > 1 ? 'They' : 'It'} will be <b>silent</b> in the video. Re-do {silent > 1 ? 'them' : 'it'} with ElevenLabs or the microphone. <button className="btn small primary" onClick={() => { openNarration(draftLines(project).map((c) => c.id)); onClose(); }}>🎙 Record my voice for {silent > 1 ? 'these lines' : 'this line'}</button></li>}
             {missing.length > 0 && <li className="warn">⚠ {missing.length} clip{missing.length > 1 ? 's have' : ' has'} lost {missing.length > 1 ? 'their' : 'its'} audio on this device ({missing.slice(0, 3).map((m) => `“${m.label}”`).join(', ')}{missing.length > 3 ? '…' : ''}) and will be silent. Record or generate {missing.length > 1 ? 'them' : 'it'} again.</li>}
             {project.audio.length === 0 && <li>No sound added yet. The video will be silent.</li>}
             {mime && !/avc1/.test(mime) && <li>This browser saves <b>.webm</b> (or a non-H.264 file). YouTube and computers play it; for iPads/iPhones convert it to .mp4 with <code>scripts/to-mp4.sh</code> (see README). Chrome on desktop usually saves a ready-to-share .mp4.</li>}

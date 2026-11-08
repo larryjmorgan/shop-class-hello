@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyEase, assignLanes, countDropped, fmtTime, findKeyframeIndex, fitToDuration, emptyProject, normalizeProject, samplePose, upsertKeyframe, type Keyframe } from './model';
+import { applyEase, assignLanes, countDropped, draftLines, fmtTime, overlappingVoiceLines, findKeyframeIndex, fitToDuration, emptyProject, normalizeProject, samplePose, upsertKeyframe, type Keyframe } from './model';
 
 const kf = (t: number, x: number, ease: Keyframe['ease'] = 'linear'): Keyframe => ({ t, x, y: 100, scale: 1, rot: 0, opacity: 1, flip: false, ease });
 
@@ -123,5 +123,20 @@ describe('normalizeProject colours', () => {
     expect(mk('#ff00aa')).toBe('#ff00aa');
     expect(mk('"><script>')).toBe('#ffffff');
     expect(mk(undefined)).toBe('#ffffff');
+  });
+});
+
+describe('narration helpers', () => {
+  const v = (id: string, start: number, duration: number, provider: 'browser' | 'mic' | 'eleven'): import('./model').AudioClip =>
+    ({ id, kind: 'voice', start, duration, volume: 1, label: id, provider });
+
+  it('draftLines = computer-voice lines only, in story order', () => {
+    const p = { ...emptyProject(), audio: [v('late', 9, 2, 'browser'), v('mine', 3, 2, 'mic'), v('early', 1, 2, 'browser'), { id: 'm', kind: 'music' as const, start: 0, duration: 5, volume: 1, label: 'm' }] };
+    expect(draftLines(p).map((c) => c.id)).toEqual(['early', 'late']);
+  });
+
+  it('overlappingVoiceLines finds people talking over each other, but not back-to-back lines', () => {
+    const p = { ...emptyProject(), audio: [v('a', 0, 3, 'mic'), v('b', 2.5, 2, 'mic'), v('c', 4.5, 1, 'mic'), v('d', 10, 2, 'mic')] };
+    expect(overlappingVoiceLines(p).map((c) => c.id)).toEqual(['a', 'b']);
   });
 });

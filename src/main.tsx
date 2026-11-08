@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { requestPersistentStorage } from './db';
 import { flushSave } from './store';
 import { App } from './ui/App';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 import './ui/styles.css';
 
 // Don't lose the last half-second of edits if the tab is closed or the tablet is put to sleep.
@@ -12,6 +13,8 @@ requestPersistentStorage();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

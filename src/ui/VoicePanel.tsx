@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   MicError, browserVoices, decodeBlobDuration, elevenSpeak, elevenVoices, getElevenKey, speakBrowser, startMicRecording, stopBrowserSpeech,
   type MicRecording,
 } from '../audio';
 import { putBlob } from '../db';
-import { estimateSpeechSeconds, uid } from '../model';
-import { addAudio, getTime, useStore } from '../store';
+import { draftLines, estimateSpeechSeconds, uid, type Project } from '../model';
+import { addAudio, getTime, openNarration, useStore } from '../store';
 
 type Provider = 'browser' | 'eleven' | 'mic';
 
@@ -15,7 +15,11 @@ export function VoicePanel() {
   const objects = useStore((s) => s.project.objects);
   const characters = objects.filter((o) => o.kind === 'character');
   const selection = useStore((s) => s.selection);
-  const [provider, setProvider] = useState<Provider>('browser');
+  // (Select the stable list, then derive: a selector that builds a new array every call makes React loop forever.)
+  const audioClips = useStore((s) => s.project.audio);
+  const drafts = useMemo(() => draftLines({ audio: audioClips } as Project), [audioClips]);
+  // Your own voice is the default (it is included in the video); computer voices are for quick drafts.
+  const [provider, setProvider] = useState<Provider>(() => (typeof navigator !== 'undefined' && !!navigator.mediaDevices ? 'mic' : 'browser'));
   const [speaker, setSpeaker] = useState<string>('narrator');
   const [text, setText] = useState('');
   const [rate, setRate] = useState(1);
@@ -130,7 +134,8 @@ export function VoicePanel() {
       const len = await decodeBlobDuration(blob);
       const key = uid('blob');
       const saved = await putBlob(key, blob);
-      addAudio({ kind: 'voice', start: start(), duration: len / playbackRate, bufferDuration: len, volume: 1, label: speakerName, text: text || '(recording)', characterId, provider: 'mic', rate: playbackRate, blobKey: key });
+      addAudio({ kind: 'voice', start: start(), duration: len / playbackRate, bufferDuration: len, volume: 1, label: speakerName, text: text.trim() || '(recording)', characterId, provider: 'mic', rate: playbackRate, blobKey: key });
+      setText('');
       if (!saved) setError(NOT_SAVED);
     } catch {
       setError('That recording could not be read.');
@@ -139,6 +144,12 @@ export function VoicePanel() {
 
   return (
     <div className="panel-body">
+      {drafts.length > 0 && (
+        <div className="draft-banner">
+          <span>🔇 <b>{drafts.length}</b> line{drafts.length > 1 ? 's use' : ' uses'} a computer voice, which is <b>silent in the video</b>.</span>
+          <button className="btn small primary" onClick={() => openNarration(drafts.map((c) => c.id))}>🎙 Record my lines…</button>
+        </div>
+      )}
       <label className="field">Who is talking?
         <select value={speaker} onChange={(e) => setSpeaker(e.target.value)}>
           <option value="narrator">Narrator (no mouth)</option>
@@ -152,9 +163,10 @@ export function VoicePanel() {
         <button className={provider === 'mic' ? 'on' : ''} onClick={() => setProvider('mic')}>Microphone</button>
       </div>
 
-      {provider !== 'mic' && (
-        <textarea rows={4} placeholder="Type what they say…" value={text} onChange={(e) => setText(e.target.value)} maxLength={600} />
-      )}
+      <textarea
+        rows={provider === 'mic' ? 2 : 4} value={text} onChange={(e) => setText(e.target.value)} maxLength={600}
+        placeholder={provider === 'mic' ? 'What will you say? (optional: shown on the timeline)' : 'Type what they say…'}
+      />
 
       {provider === 'browser' && (
         <>

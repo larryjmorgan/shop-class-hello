@@ -60,6 +60,12 @@ export async function exportVideo(project: Project, opts: ExportOptions): Promis
   renderFrame(g, project, 0);
 
   const audioDest = ac.createMediaStreamDestination();
+  // A constant, inaudible (-80 dB) signal keeps the audio track running for the whole video. Without it the recorder
+  // stops writing audio once the last sound ends, leaving a shorter audio track than video.
+  const keepAlive = ac.createConstantSource();
+  keepAlive.offset.value = 0.0001;
+  keepAlive.connect(audioDest);
+  keepAlive.start();
   const stream = canvas.captureStream(opts.fps);
   audioDest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
 
@@ -75,6 +81,7 @@ export async function exportVideo(project: Project, opts: ExportOptions): Promis
   let wake: WakeLockSentinel | null = null;
   try { wake = (await navigator.wakeLock?.request('screen')) ?? null; } catch { /* not allowed: fine */ }
   const cleanup = () => {
+    try { keepAlive.stop(); keepAlive.disconnect(); } catch { /* already stopped */ }
     document.removeEventListener('visibilitychange', onVisibility);
     void wake?.release().catch(() => undefined);
   };

@@ -1,10 +1,16 @@
 import { useSyncExternalStore } from 'react';
 import {
-  MAX_DURATION, MIN_DURATION, STAGE_W, clamp, emptyProject, findKeyframeIndex, fitToDuration, normalizeProject, samplePose, uid, upsertKeyframe,
+  MAX_DURATION, MIN_DURATION, STAGE_W, clamp, emptyProject, findKeyframeIndex, fitToDuration, samplePose, uid, upsertKeyframe,
   type AudioClip, type BackgroundClip, type Keyframe, type Pose, type Project, type SceneObject,
 } from './model';
 import { artById, bgById } from './assets';
 import { SAMPLE_PROJECT } from './sample';
+import { deleteBlob } from './db';
+import {
+  currentStoryId, listStories, migrateLegacyStory, newStoryId, orphanedBlobKeys, otherStories, readStory, removeStory,
+  setCurrentStoryId, writeStory, writeThumb,
+} from './library';
+import { makeThumb } from './thumb';
 
 export type Selection =
   | { type: 'none' }
@@ -13,6 +19,8 @@ export type Selection =
   | { type: 'audio'; id: string };
 
 export interface AppState {
+  /** id of the story that is open (its library entry) */
+  currentId: string;
   project: Project;
   selection: Selection;
   selectedKfT: number | null;
@@ -21,29 +29,39 @@ export interface AppState {
   future: Project[];
   /** true when the last autosave could not be written (storage full/blocked) */
   saveFailed: boolean;
+  /** ids of the voice lines the "Record your lines" helper is walking through (null = closed) */
+  narration: string[] | null;
 }
 
-const STORAGE = 'storybox.project.v1';
-
-function loadInitial(): Project {
-  try {
-    const raw = localStorage.getItem(STORAGE);
-    if (raw) {
-      const p = normalizeProject(JSON.parse(raw));
-      if (p) return p;
+/** Open the last story, or the newest readable one, or start with the sample. */
+function boot(): { id: string; project: Project } {
+  migrateLegacyStory();
+  for (const id of [currentStoryId(), ...listStories().map((m) => m.id)]) {
+    const project = id ? readStory(id) : null;
+    if (id && project) {
+      setCurrentStoryId(id);
+      return { id, project };
     }
-  } catch { /* fall through */ }
-  return structuredClone(SAMPLE_PROJECT);
+  }
+  const id = newStoryId();
+  const project = structuredClone(SAMPLE_PROJECT);
+  writeStory(id, project);
+  setCurrentStoryId(id);
+  return { id, project };
 }
+
+const initial = boot();
 
 let state: AppState = {
-  project: loadInitial(),
+  currentId: initial.id,
+  project: initial.project,
   selection: { type: 'none' },
   selectedKfT: null,
   autoKey: true,
   past: [],
   future: [],
   saveFailed: false,
+  narration: null,
 };
 
 const subs = new Set<() => void>();
@@ -56,9 +74,23 @@ function writeNow() {
   clearTimeout(saveTimer);
   if (!dirty) return;
   dirty = false;
-  let failed = false;
-  try { localStorage.setItem(STORAGE, JSON.stringify(state.project)); } catch { failed = true; }
-  if (failed !== state.saveFailed) setState({ saveFailed: failed });
+  const failed = !writeStory(state.currentId, state.project);
+  if (failed !== state.saveFailed) setState({ saveFailed: failed }, false);
+  scheduleThumb();
+}
+
+const thumbTimers = new Map<string, ReturnType<typeof setTimeout>>();
+/**
+ * Refresh a story's library picture a couple of seconds after editing stops (no need to do it per keystroke).
+ * It works from a snapshot, so it still happens if you switch to another story in the meantime.
+ */
+function scheduleThumb(id = state.currentId, project = state.project) {
+  clearTimeout(thumbTimers.get(id));
+  thumbTimers.set(id, setTimeout(async () => {
+    thumbTimers.delete(id);
+    const t = await makeThumb(project);
+    if (t) writeThumb(id, t); // ignored if the story was deleted meanwhile
+  }, 2500));
 }
 
 function scheduleSave() {
@@ -72,10 +104,11 @@ export function flushSave() {
   writeNow();
 }
 
-function setState(patch: Partial<AppState>) {
+/** `persist` = autosave the change. (Opening a story must not count as editing it.) */
+function setState(patch: Partial<AppState>, persist = true) {
   const projectChanged = patch.project && patch.project !== state.project;
   state = { ...state, ...patch };
-  if (projectChanged) scheduleSave();
+  if (projectChanged && persist) scheduleSave();
   emit();
 }
 
@@ -85,6 +118,7 @@ export const subscribe = (fn: () => void) => {
   return () => subs.delete(fn);
 };
 
+/** The selector MUST return a stable value (a field of the state), never a freshly built array/object, or React loops. */
 export function useStore<T>(selector: (s: AppState) => T): T {
   return useSyncExternalStore(subscribe, () => selector(state));
 }
@@ -145,15 +179,73 @@ export function select(sel: Selection, kfT: number | null = null) {
 }
 export const setAutoKey = (v: boolean) => setState({ autoKey: v });
 
+/** Replace the open story's contents in memory and clear undo history (used by tests). */
 export function loadProject(p: Project) {
   lastKey = undefined;
   setState({ project: fitToDuration(p), past: [], future: [], selection: { type: 'none' }, selectedKfT: null });
 }
-export function newProject() {
-  loadProject(emptyProject());
+
+// ---------- the story library ----------
+
+function activate(id: string, project: Project) {
+  lastKey = undefined;
+  setCurrentStoryId(id);
+  setState({ currentId: id, project, past: [], future: [], selection: { type: 'none' }, selectedKfT: null, narration: null }, false);
+  if (!listStories().find((m) => m.id === id)?.thumb) scheduleThumb();
 }
-export function loadSample() {
-  loadProject(structuredClone(SAMPLE_PROJECT));
+
+/** Switch to another saved story. The one being left is saved first, so nothing is ever lost. */
+export function openStory(id: string): boolean {
+  flushSave();
+  const project = readStory(id);
+  if (!project) return false;
+  activate(id, project);
+  return true;
+}
+
+/** Create a story (blank unless a project is given), save it, and open it. */
+export function newStory(project: Project = emptyProject()): string {
+  flushSave();
+  const id = newStoryId();
+  const fitted = fitToDuration(project);
+  const saved = writeStory(id, fitted);
+  activate(id, fitted);
+  if (!saved) setState({ saveFailed: true }, false);
+  return id;
+}
+
+export const newSampleStory = () => newStory(structuredClone(SAMPLE_PROJECT));
+
+/** Add a copy of a story to the library (the copy shares recordings, which is safe: they are reference-counted). */
+export function duplicateStory(id: string): string | null {
+  flushSave();
+  const src = id === state.currentId ? state.project : readStory(id);
+  if (!src) return null;
+  const copy = { ...structuredClone(src), title: `${src.title} (copy)` };
+  const newId = newStoryId();
+  if (!writeStory(newId, copy)) {
+    setState({ saveFailed: true }, false);
+    return null;
+  }
+  const thumb = listStories().find((m) => m.id === id)?.thumb;
+  if (thumb) writeThumb(newId, thumb);
+  return newId;
+}
+
+/** Delete a story and any recordings that no other story (or undo step) still needs. */
+export async function deleteStory(id: string): Promise<void> {
+  flushSave(); // first, so a pending save can't resurrect it afterwards
+  const isCurrent = id === state.currentId;
+  const doomed = isCurrent ? state.project : readStory(id);
+  removeStory(id);
+  if (doomed) {
+    const needed = [...otherStories(id), ...(isCurrent ? [] : [state.project, ...state.past, ...state.future])];
+    for (const key of orphanedBlobKeys(doomed, needed)) await deleteBlob(key);
+  }
+  if (isCurrent) {
+    const next = listStories().find((m) => openStory(m.id));
+    if (!next) newStory();
+  }
 }
 
 // ---------- playhead (separate tiny store: it changes every frame) ----------
@@ -254,6 +346,29 @@ export function addBackground(bgId: string, at: number) {
     p.backgrounds.sort((a, b) => a.start - b.start);
   });
   select({ type: 'bg', id });
+}
+
+export const openNarration = (ids: string[]) => setState({ narration: ids.length ? ids : null }, false);
+export const closeNarration = () => setState({ narration: null }, false);
+
+/**
+ * Swap a voice line's sound for a recording of the user's own voice. Words, speaker and start time are kept;
+ * the length follows the recording (and the story grows if the new take runs past the end).
+ */
+export function replaceVoiceAudio(id: string, take: { blobKey: string; bufferDuration: number; rate: number }) {
+  mutate((p) => {
+    const c = p.audio.find((x) => x.id === id && x.kind === 'voice');
+    if (!c) return;
+    c.provider = 'mic';
+    c.blobKey = take.blobKey;
+    c.bufferDuration = take.bufferDuration;
+    c.rate = take.rate;
+    c.duration = take.bufferDuration / take.rate;
+    c.voiceId = undefined;
+    c.pitch = undefined;
+    const end = c.start + c.duration;
+    if (end > p.duration) p.duration = clamp(Math.ceil(end), MIN_DURATION, MAX_DURATION);
+  });
 }
 
 export function addAudio(clip: Omit<AudioClip, 'id'>): string {

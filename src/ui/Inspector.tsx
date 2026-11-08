@@ -1,7 +1,7 @@
 import { artById, bgById } from '../assets';
 import {
   addKeyframeAt, deleteKeyframe, deleteSelection, duplicateObject, moveLayer, mutate, posePatch, select, setAutoKey, setKeyframeEase,
-  updateAudio, updateBackground, updateObject, useStore, useTime,
+  openNarration, updateAudio, updateBackground, updateObject, useStore, useTime,
 } from '../store';
 import { activeAt, findKeyframeIndex, fmtTime, samplePose, type Behavior, type Ease, type Entrance } from '../model';
 
@@ -149,6 +149,7 @@ export function Inspector() {
           </select>
         </label>
       )}
+      {c.kind === 'voice' && <button className="btn small primary" onClick={() => openNarration([c.id])}>🎙 {c.provider === 'browser' ? 'Record my voice for this line' : 'Re-record this line'}</button>}
       <label className="field">Volume {Math.round(c.volume * 100)}%
         <input type="range" min={0} max={1.5} step={0.05} value={c.volume} onChange={(e) => updateAudio(c.id, (x) => { x.volume = Number(e.target.value); }, true, `vol:${c.id}`)} />
       </label>

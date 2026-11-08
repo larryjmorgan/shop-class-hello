@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { MAX_DURATION, MIN_DURATION, clamp, countDropped, fmtTime } from '../model';
 import { download, projectFromFile, projectToFile, safeName } from '../projectFile';
 import {
-  deleteSelection, deleteSelectedKeyframe, getState, getTime, loadProject, loadSample, newProject, redo, setDuration, setTime, setTitle, undo, useStore, usePlaying, useTime,
+  closeNarration, deleteSelection, deleteSelectedKeyframe, getState, getTime, newSampleStory, newStory, redo, setDuration, setTime, setTitle, undo, useStore, usePlaying, useTime,
 } from '../store';
 import { pause, seek, toggle } from '../transport';
 import { ExportDialog, Modal, SettingsDialog } from './Dialogs';
 import { Inspector } from './Inspector';
 import { Library } from './Library';
+import { NarrationDialog } from './Narration';
 import { Stage } from './Stage';
+import { StoriesDialog } from './Stories';
 import { Timeline } from './Timeline';
 
 /** Length box: edit freely, apply on Enter/blur (applying per keystroke turned "90" into a 9-second story first). */
@@ -62,12 +64,15 @@ export function App() {
   const canUndo = useStore((s) => s.past.length > 0);
   const canRedo = useStore((s) => s.future.length > 0);
   const saveFailed = useStore((s) => s.saveFailed);
-  const [dialog, setDialog] = useState<'none' | 'export' | 'settings' | 'help'>('none');
+  const narration = useStore((s) => s.narration);
+  const [dialog, setDialog] = useState<'none' | 'export' | 'settings' | 'help' | 'stories'>('none');
   const [tall, setTall] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // A dialog is open: Space/Delete/arrows must not play, delete or scrub the story hidden behind it.
+      if (document.querySelector('.modal-back')) return;
       const el = e.target as HTMLElement;
       const inputType = el.tagName === 'INPUT' ? (el as HTMLInputElement).type : '';
       const typing = isTyping(el);
@@ -91,7 +96,7 @@ export function App() {
       else if (e.key === 'Home') seek(0);
     };
     // Some browsers fire a button's click on Space *key-up*; stop that, or Space would play AND re-press the focused button.
-    const onKeyUp = (e: KeyboardEvent) => { if (e.code === 'Space' && !isTyping(e.target as HTMLElement)) e.preventDefault(); };
+    const onKeyUp = (e: KeyboardEvent) => { if (e.code === 'Space' && !document.querySelector('.modal-back') && !isTyping(e.target as HTMLElement)) e.preventDefault(); };
     window.addEventListener('keydown', onKey);
     window.addEventListener('keyup', onKeyUp);
     return () => {
@@ -99,8 +104,6 @@ export function App() {
       window.removeEventListener('keyup', onKeyUp);
     };
   }, []);
-
-  const confirmDiscard = (msg = 'Start over? Your current story is saved in this browser, but this will replace it. Use “Save file” first if you want to keep it.') => window.confirm(msg);
 
   return (
     <div className={`app${tall ? ' tall' : ''}${saveFailed ? ' has-banner' : ''}`}>
@@ -113,18 +116,20 @@ export function App() {
           <small>max 3:00</small>
         </label>
         <span className="spacer" />
+        <button className="btn" onClick={() => setDialog('stories')} title="All your stories">📚 My stories</button>
         <button className="btn" onClick={undo} disabled={!canUndo} title="Ctrl/⌘+Z">↶ Undo</button>
         <button className="btn" onClick={redo} disabled={!canRedo} title="Ctrl/⌘+Shift+Z">↷ Redo</button>
         <details className="menu">
           <summary className="btn">📁 Project ▾</summary>
           <div className="menu-pop" onClick={(e) => ((e.currentTarget.parentElement as HTMLDetailsElement).open = false)}>
-            <button onClick={() => { if (confirmDiscard()) { pause(); setTime(0); newProject(); } }}>✨ New blank story</button>
-            <button onClick={() => { if (confirmDiscard()) { pause(); setTime(0); loadSample(); } }}>🐰 Load sample story</button>
+            <button onClick={() => setDialog('stories')}>📚 My stories…</button>
+            <button onClick={() => { pause(); setTime(0); newStory(); }}>✨ New story</button>
+            <button onClick={() => { pause(); setTime(0); newSampleStory(); }}>🐰 New story from the sample</button>
             <button onClick={async () => {
               try { download(await projectToFile(getState().project), `${safeName(getState().project.title)}.storybox.json`); }
               catch { alert('Sorry, the project file could not be created.'); }
             }}>💾 Save file…</button>
-            <button onClick={() => fileRef.current?.click()}>📂 Open file…</button>
+            <button onClick={() => fileRef.current?.click()}>📂 Add a story from a file…</button>
           </div>
         </details>
         <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={async (e) => {
@@ -132,9 +137,8 @@ export function App() {
           e.target.value = '';
           if (!f) return;
           try {
-            const opened = await projectFromFile(f); // validate first so a bad file never replaces the current story
-            if (!confirmDiscard('Open this file? It will replace the story you are working on (use “Save file” first to keep that one).')) return;
-            pause(); setTime(0); loadProject(opened);
+            const imported = await projectFromFile(f); // validated first, then added as a NEW story (nothing is replaced)
+            pause(); setTime(0); newStory(imported);
           } catch (err) { alert((err as Error).message); }
         }} />
         <button className="btn" onClick={() => setDialog('settings')} title="ElevenLabs key">⚙ Settings</button>
@@ -155,6 +159,8 @@ export function App() {
       <Timeline tall={tall} onToggleTall={() => setTall((v) => !v)} />
       {dialog === 'export' && <ExportDialog onClose={() => setDialog('none')} />}
       {dialog === 'settings' && <SettingsDialog onClose={() => setDialog('none')} />}
+      {dialog === 'stories' && <StoriesDialog onClose={() => setDialog('none')} />}
+      {narration && <NarrationDialog clipIds={narration} onClose={closeNarration} />}
       {dialog === 'help' && (
         <SettingsHelp onClose={() => setDialog('none')} />
       )}
