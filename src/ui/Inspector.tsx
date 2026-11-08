@@ -1,6 +1,6 @@
 import { artById, bgById } from '../assets';
 import {
-  deleteKeyframe, deleteSelection, duplicateObject, moveLayer, mutate, posePatch, select, setAutoKey, setKeyframeEase,
+  addKeyframeAt, deleteKeyframe, deleteSelection, duplicateObject, moveLayer, mutate, posePatch, select, setAutoKey, setKeyframeEase,
   updateAudio, updateBackground, updateObject, useStore, useTime,
 } from '../store';
 import { activeAt, findKeyframeIndex, fmtTime, samplePose, type Behavior, type Ease, type Entrance } from '../model';
@@ -51,13 +51,13 @@ export function Inspector() {
     const onStage = activeAt(o.start, o.end, t);
     const kfIdx = findKeyframeIndex(o.keyframes, t);
     const kfSel = selectedKfT !== null ? findKeyframeIndex(o.keyframes, selectedKfT) : -1;
-    const set = (patch: Parameters<typeof posePatch>[2]) => posePatch(o.id, t, patch);
+    const set = (patch: Parameters<typeof posePatch>[2]) => posePatch(o.id, t, patch, true, `pose:${o.id}:${Object.keys(patch).join()}`);
     return (
       <aside className="inspector">
         <h3>{o.kind === 'text' ? '🔤' : art?.emoji} {o.name}</h3>
-        <label className="field">Name<input value={o.name} onChange={(e) => updateObject(o.id, (x) => { x.name = e.target.value; })} /></label>
+        <label className="field">Name<input value={o.name} onChange={(e) => updateObject(o.id, (x) => { x.name = e.target.value; }, true, `name:${o.id}`)} /></label>
         {o.kind === 'text' && (
-          <label className="field">Words<textarea rows={2} value={o.text ?? ''} onChange={(e) => updateObject(o.id, (x) => { x.text = e.target.value; })} /></label>
+          <label className="field">Words<textarea rows={2} value={o.text ?? ''} onChange={(e) => updateObject(o.id, (x) => { x.text = e.target.value; }, true, `text:${o.id}`)} /></label>
         )}
         <div className="swatches" aria-label="Colour">
           {(o.kind === 'text' ? ['#ffe066', '#ffffff', '#ff8fc7', '#7fe0ff', '#9dffa6', '#ffb36b'] : art?.colors ?? []).map((c) => (
@@ -79,7 +79,7 @@ export function Inspector() {
         </div>
         <div className="row-btns">
           <button className="btn small" onClick={() => set({ flip: !raw.flip })}>↔ Flip</button>
-          <button className="btn small" onClick={() => set({})} disabled={kfIdx >= 0} title="Add a keyframe at the playhead with the current pose">◆ Key here</button>
+          <button className="btn small" onClick={() => addKeyframeAt(o.id, t)} disabled={kfIdx >= 0 || !onStage} title="Add a keyframe at the playhead with the current pose">◆ Key here</button>
           <button className="btn small" onClick={() => kfSel >= 0 && deleteKeyframe(o.id, selectedKfT!)} disabled={kfSel < 0 || o.keyframes.length <= 1}>Remove ◆</button>
         </div>
         {kfSel >= 0 && (
@@ -137,7 +137,7 @@ export function Inspector() {
       <p className="muted">{fmtTime(c.start)} → {fmtTime(c.start + c.duration)} {c.provider === 'browser' && '· computer voice (preview only)'}</p>
       {c.kind === 'voice' && (
         <label className="field">Words
-          <textarea rows={3} value={c.text ?? ''} onChange={(e) => updateAudio(c.id, (x) => { x.text = e.target.value; })} />
+          <textarea rows={3} value={c.text ?? ''} onChange={(e) => updateAudio(c.id, (x) => { x.text = e.target.value; }, true, `atext:${c.id}`)} />
           {c.provider !== 'browser' && <small>Editing the text doesn’t change recorded audio.</small>}
         </label>
       )}
@@ -150,10 +150,10 @@ export function Inspector() {
         </label>
       )}
       <label className="field">Volume {Math.round(c.volume * 100)}%
-        <input type="range" min={0} max={1.5} step={0.05} value={c.volume} onChange={(e) => updateAudio(c.id, (x) => { x.volume = Number(e.target.value); })} />
+        <input type="range" min={0} max={1.5} step={0.05} value={c.volume} onChange={(e) => updateAudio(c.id, (x) => { x.volume = Number(e.target.value); }, true, `vol:${c.id}`)} />
       </label>
-      <Num label="Start (s)" value={c.start} step={0.1} min={0} onChange={(v) => updateAudio(c.id, (x) => { x.start = Math.max(0, v); })} />
-      <Num label="Length (s)" value={c.duration} step={0.1} min={0.3} onChange={(v) => updateAudio(c.id, (x) => { x.duration = Math.max(0.3, v); })} />
+      <Num label="Start (s)" value={c.start} step={0.1} min={0} onChange={(v) => updateAudio(c.id, (x) => { x.start = Math.max(0, v); }, true, `astart:${c.id}`)} />
+      <Num label="Length (s)" value={c.duration} step={0.1} min={0.3} onChange={(v) => updateAudio(c.id, (x) => { x.duration = Math.max(0.3, v); }, true, `adur:${c.id}`)} />
       <button className="btn small danger" onClick={() => { deleteSelection(); select({ type: 'none' }); }}>🗑 Delete</button>
     </aside>
   );

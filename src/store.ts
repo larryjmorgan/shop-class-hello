@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import {
-  MAX_DURATION, MIN_DURATION, STAGE_H, STAGE_W, clamp, emptyProject, findKeyframeIndex, fitToDuration, samplePose, uid, upsertKeyframe,
+  MAX_DURATION, MIN_DURATION, STAGE_H, STAGE_W, clamp, emptyProject, findKeyframeIndex, fitToDuration, normalizeProject, samplePose, uid, upsertKeyframe,
   type AudioClip, type BackgroundClip, type Keyframe, type Pose, type Project, type SceneObject,
 } from './model';
 import { artById, bgById } from './assets';
@@ -28,8 +28,8 @@ function loadInitial(): Project {
   try {
     const raw = localStorage.getItem(STORAGE);
     if (raw) {
-      const p = JSON.parse(raw) as Project;
-      if (p?.version === 1 && Array.isArray(p.objects)) return p;
+      const p = normalizeProject(JSON.parse(raw));
+      if (p) return p;
     }
   } catch { /* fall through */ }
   return structuredClone(SAMPLE_PROJECT);
@@ -47,10 +47,10 @@ let state: AppState = {
 const subs = new Set<() => void>();
 const emit = () => subs.forEach((s) => s());
 
-let saveTimer: number | undefined;
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
 function scheduleSave() {
-  window.clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(() => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
     try { localStorage.setItem(STORAGE, JSON.stringify(state.project)); } catch { /* quota */ }
   }, 400);
 }
@@ -76,28 +76,41 @@ export function useStore<T>(selector: (s: AppState) => T): T {
 
 const HISTORY_LIMIT = 60;
 
+// Edits with the same `key` made within this window share one undo step (typing a title, dragging a slider).
+const COALESCE_MS = 1000;
+let lastKey: string | undefined;
+let lastKeyAt = 0;
+
 /** Call once at the start of a drag so the whole gesture is a single undo step. */
 export function beginGesture() {
+  lastKey = undefined;
   setState({ past: [...state.past, state.project].slice(-HISTORY_LIMIT), future: [] });
 }
 
-/** Apply a change. `record` = push an undo step (false inside a gesture). */
-export function mutate(fn: (p: Project) => void, record = true) {
+/** Apply a change. `record` = push an undo step (false inside a gesture). `key` merges rapid repeat edits. */
+export function mutate(fn: (p: Project) => void, record = true, key?: string) {
   const next = structuredClone(state.project);
   fn(next);
   const fitted = fitToDuration(next);
-  setState({
-    project: fitted,
-    ...(record ? { past: [...state.past, state.project].slice(-HISTORY_LIMIT), future: [] } : {}),
-  });
+  let patch: Partial<AppState> = { project: fitted };
+  if (record) {
+    const now = Date.now();
+    const merge = key !== undefined && key === lastKey && now - lastKeyAt < COALESCE_MS && state.past.length > 0;
+    lastKey = key;
+    lastKeyAt = now;
+    patch = { ...patch, future: [], ...(merge ? {} : { past: [...state.past, state.project].slice(-HISTORY_LIMIT) }) };
+  }
+  setState(patch);
 }
 
 export function undo() {
+  lastKey = undefined;
   const prev = state.past[state.past.length - 1];
   if (!prev) return;
   setState({ project: prev, past: state.past.slice(0, -1), future: [state.project, ...state.future], selection: pruneSel(state.selection, prev) });
 }
 export function redo() {
+  lastKey = undefined;
   const next = state.future[0];
   if (!next) return;
   setState({ project: next, past: [...state.past, state.project], future: state.future.slice(1), selection: pruneSel(state.selection, next) });
@@ -116,6 +129,7 @@ export function select(sel: Selection, kfT: number | null = null) {
 export const setAutoKey = (v: boolean) => setState({ autoKey: v });
 
 export function loadProject(p: Project) {
+  lastKey = undefined;
   setState({ project: fitToDuration(p), past: [], future: [], selection: { type: 'none' }, selectedKfT: null });
 }
 export function newProject() {
@@ -155,11 +169,12 @@ export function usePlaying(): boolean {
 // ---------- editing actions ----------
 
 export function setTitle(title: string) {
-  mutate((p) => { p.title = title; });
+  mutate((p) => { p.title = title; }, true, 'title');
 }
 
 export function setDuration(d: number) {
   const dur = clamp(Math.round(d), MIN_DURATION, MAX_DURATION);
+  if (dur === state.project.duration) return;
   mutate((p) => { p.duration = dur; });
   if (time > dur) setTime(dur);
 }
@@ -226,22 +241,27 @@ export function addBackground(bgId: string, at: number) {
 
 export function addAudio(clip: Omit<AudioClip, 'id'>): string {
   const id = uid('aud');
-  mutate((p) => { p.audio.push({ ...clip, id }); });
+  mutate((p) => {
+    // Never silently cut a spoken line short: grow the story (up to 3:00) to fit it.
+    const end = clip.start + clip.duration;
+    if (clip.kind !== 'music' && end > p.duration) p.duration = clamp(Math.ceil(end), MIN_DURATION, MAX_DURATION);
+    p.audio.push({ ...clip, id });
+  });
   select({ type: 'audio', id });
   return id;
 }
 
-export function updateObject(id: string, fn: (o: SceneObject) => void, record = true) {
+export function updateObject(id: string, fn: (o: SceneObject) => void, record = true, key?: string) {
   mutate((p) => {
     const o = p.objects.find((x) => x.id === id);
     if (o) fn(o);
-  }, record);
+  }, record, key);
 }
-export function updateAudio(id: string, fn: (c: AudioClip) => void, record = true) {
+export function updateAudio(id: string, fn: (c: AudioClip) => void, record = true, key?: string) {
   mutate((p) => {
     const c = p.audio.find((x) => x.id === id);
     if (c) fn(c);
-  }, record);
+  }, record, key);
 }
 export function updateBackground(id: string, fn: (c: BackgroundClip) => void, record = true) {
   mutate((p) => {
@@ -255,7 +275,7 @@ export function updateBackground(id: string, fn: (c: BackgroundClip) => void, re
  *  - autoKey on: creates/updates a keyframe at t (the object animates between keyframes)
  *  - autoKey off: shifts the whole motion path by the delta (no new keyframes)
  */
-export function posePatch(id: string, t: number, patch: Partial<Pose>, record = true) {
+export function posePatch(id: string, t: number, patch: Partial<Pose>, record = true, key?: string) {
   const auto = state.autoKey;
   mutate((p) => {
     const o = p.objects.find((x) => x.id === id);
@@ -272,7 +292,16 @@ export function posePatch(id: string, t: number, patch: Partial<Pose>, record = 
         flip: patch.flip !== undefined ? patch.flip : k.flip,
       }));
     }
-  }, record);
+  }, record, key);
+}
+
+/** Add a keyframe at `t` holding the pose the object has right now (works regardless of auto-key). */
+export function addKeyframeAt(id: string, t: number) {
+  mutate((p) => {
+    const o = p.objects.find((x) => x.id === id);
+    if (o) o.keyframes = upsertKeyframe(o.keyframes, t, samplePose(o.keyframes, t));
+  });
+  setState({ selectedKfT: t });
 }
 
 export function setKeyframeEase(id: string, kfT: number, ease: Keyframe['ease']) {

@@ -244,13 +244,57 @@ export function fmtTime(s: number): string {
   return `${m}:${sec.toFixed(1).padStart(4, '0')}`;
 }
 
-/** Clamp every clip so nothing runs past the (possibly shortened) project duration. */
+const MIN_VISUAL = 0.5;
+const MIN_AUDIO = 0.3;
+
+/**
+ * Make every clip fit a (possibly shortened) project. Clips that run past the end are trimmed.
+ * Clips that would have less than a blink left (or start after the end) are removed, because
+ * leaving them past the end makes invisible clips you can't select or delete.
+ */
 export function fitToDuration(p: Project): Project {
   const d = p.duration;
   return {
     ...p,
-    objects: p.objects.map((o) => (o.end > d ? { ...o, end: Math.max(o.start + 0.5, d) } : o)),
-    backgrounds: p.backgrounds.map((b) => (b.end > d ? { ...b, end: Math.max(b.start + 0.5, d) } : b)),
-    audio: p.audio.map((a) => (a.start + a.duration > d ? { ...a, duration: Math.max(0.3, d - a.start) } : a)),
+    objects: p.objects
+      .filter((o) => d - o.start >= MIN_VISUAL)
+      .map((o) => (o.end > d ? { ...o, end: d } : o)),
+    backgrounds: p.backgrounds
+      .filter((b) => d - b.start >= MIN_VISUAL)
+      .map((b) => (b.end > d ? { ...b, end: d } : b)),
+    audio: p.audio
+      .filter((a) => d - a.start >= MIN_AUDIO)
+      .map((a) => (a.start + a.duration > d ? { ...a, duration: d - a.start } : a)),
   };
+}
+
+/** How many clips `fitToDuration` would delete outright if the project were `d` seconds long. */
+export function countDropped(p: Project, d: number): number {
+  const fitted = fitToDuration({ ...p, duration: d });
+  return p.objects.length + p.backgrounds.length + p.audio.length - (fitted.objects.length + fitted.backgrounds.length + fitted.audio.length);
+}
+
+const OBJECT_DEFAULTS: Partial<SceneObject> = { behavior: 'none', entrance: 'pop', color: '#ffffff' };
+const AUDIO_DEFAULTS: Partial<AudioClip> = { volume: 1 };
+
+/** Validate + repair a project loaded from storage or a file. Returns null if it isn't a StoryBox project. */
+export function normalizeProject(raw: unknown): Project | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Partial<Project>;
+  if (r.version !== 1) return null;
+  const list = <T,>(x: unknown, ok: (v: T) => boolean): T[] => (Array.isArray(x) ? (x as T[]).filter((v) => v && typeof v === 'object' && ok(v)) : []);
+  const num = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
+  const objects = list<SceneObject>(r.objects, (o) => typeof o.id === 'string' && num(o.start) && num(o.end) && Array.isArray(o.keyframes) && o.keyframes.length > 0 && o.keyframes.every((k) => k && num(k.t) && num(k.x) && num(k.y)));
+  const backgrounds = list<BackgroundClip>(r.backgrounds, (b) => typeof b.id === 'string' && typeof b.bgId === 'string' && num(b.start) && num(b.end));
+  const audio = list<AudioClip>(r.audio, (a) => typeof a.id === 'string' && num(a.start) && num(a.duration) && (a.kind === 'voice' || a.kind === 'music' || a.kind === 'sfx'));
+  const duration = clamp(num(r.duration) ? Math.round(r.duration as number) : 30, MIN_DURATION, MAX_DURATION);
+  return fitToDuration({
+    version: 1,
+    title: typeof r.title === 'string' ? r.title : 'My Story',
+    duration,
+    duckMusic: r.duckMusic !== false,
+    objects: objects.map((o) => ({ ...OBJECT_DEFAULTS, ...o, name: typeof o.name === 'string' ? o.name : o.id, keyframes: [...o.keyframes].sort((a, b) => a.t - b.t) })),
+    backgrounds,
+    audio: audio.map((a) => ({ ...AUDIO_DEFAULTS, ...a, label: typeof a.label === 'string' ? a.label : a.kind })),
+  });
 }

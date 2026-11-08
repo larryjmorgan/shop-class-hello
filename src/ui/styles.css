@@ -179,5 +179,8 @@ input[type="range"] { width: 100%; accent-color: var(--brand); }
   body { overflow: auto; }
   .app { height: auto; grid-template-rows: auto auto 300px; }
   .workspace { grid-template-columns: 1fr; }
+  .center { height: auto; }
+  .stage-wrap { flex: none; width: 100%; aspect-ratio: 16 / 9; padding: 6px; }
+  .stage { width: 100%; height: auto; }
   .library, .inspector { max-height: 340px; }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MAX_DURATION, MIN_DURATION, fmtTime } from '../model';
+import { MAX_DURATION, MIN_DURATION, clamp, countDropped, fmtTime } from '../model';
 import { download, projectFromFile, projectToFile, safeName } from '../projectFile';
 import {
   deleteSelection, getState, getTime, loadProject, loadSample, newProject, redo, setDuration, setTime, setTitle, undo, useStore, usePlaying, useTime,
@@ -10,6 +10,29 @@ import { Inspector } from './Inspector';
 import { Library } from './Library';
 import { Stage } from './Stage';
 import { Timeline, deleteSelectedKeyframe } from './Timeline';
+
+/** Length box: edit freely, apply on Enter/blur (applying per keystroke turned "90" into a 9-second story first). */
+function LengthInput() {
+  const duration = useStore((s) => s.project.duration);
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = () => {
+    if (draft === null) return;
+    const n = Number(draft);
+    setDraft(null);
+    if (!Number.isFinite(n) || draft.trim() === '') return;
+    const d = clamp(Math.round(n), MIN_DURATION, MAX_DURATION);
+    const lost = countDropped(getState().project, d);
+    if (lost > 0 && !window.confirm(`Making the story ${d}s long will remove ${lost} item${lost > 1 ? 's' : ''} that start after the new end. (Undo brings them back.) Continue?`)) return;
+    setDuration(d);
+  };
+  return (
+    <input
+      type="number" min={MIN_DURATION} max={MAX_DURATION} value={draft ?? duration} aria-label="Story length in seconds"
+      onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') { setDraft(null); e.currentTarget.blur(); } }}
+    />
+  );
+}
 
 function Transport() {
   const t = useTime();
@@ -36,21 +59,24 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      const typing = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable;
+      const inputType = el.tagName === 'INPUT' ? (el as HTMLInputElement).type : '';
+      // Sliders/checkboxes/buttons don't take typed text, so shortcuts should still work while they have focus.
+      const typing = el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable || (el.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'file'].includes(inputType));
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key.toLowerCase() === 'z') {
-        if (typing && el.tagName !== 'INPUT') return;
+        if (typing) return; // let text fields use their own undo
         e.preventDefault();
         if (e.shiftKey) redo(); else undo();
         return;
       }
-      if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+      if (mod && e.key.toLowerCase() === 'y' && !typing) { e.preventDefault(); redo(); return; }
       if (typing) return;
       if (e.code === 'Space') { e.preventDefault(); toggle(); }
       else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         if (!deleteSelectedKeyframe()) deleteSelection();
       }
+      else if (inputType === 'range') return; // sliders use arrows natively
       else if (e.key === 'ArrowLeft') seek(getTime() - (e.shiftKey ? 1 : 0.1));
       else if (e.key === 'ArrowRight') seek(getTime() + (e.shiftKey ? 1 : 0.1));
       else if (e.key === 'Home') seek(0);
@@ -68,7 +94,7 @@ export function App() {
         <input className="title" value={project.title} onChange={(e) => setTitle(e.target.value)} aria-label="Story title" />
         <label className="dur" title={`Stories can be ${MIN_DURATION}s to ${MAX_DURATION / 60} minutes`}>
           Length
-          <input type="number" min={MIN_DURATION} max={MAX_DURATION} value={project.duration} onChange={(e) => setDuration(Number(e.target.value) || MIN_DURATION)} />s
+          <LengthInput />s
           <small>max 3:00</small>
         </label>
         <span className="spacer" />

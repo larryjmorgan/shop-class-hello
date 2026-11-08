@@ -3,10 +3,11 @@ import { OBJ_BASE, STAGE_H, STAGE_W, activeAt, samplePose, type SceneObject } fr
 import { measureObject, objectPoseAt, onImageLoaded, renderFrame } from '../render';
 import { beginGesture, getState, getTime, isPlaying, posePatch, select, subscribe, subscribeTime, useStore, useTime } from '../store';
 
-type Drag =
+type Drag = { began: boolean } & (
   | { kind: 'move'; id: string; t: number; px: number; py: number; x: number; y: number }
   | { kind: 'scale'; id: string; t: number; cx: number; cy: number; d0: number; s0: number }
-  | { kind: 'rotate'; id: string; t: number; cx: number; cy: number; a0: number; r0: number };
+  | { kind: 'rotate'; id: string; t: number; cx: number; cy: number; a0: number; r0: number }
+);
 
 export function Stage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -67,8 +68,7 @@ export function Stage() {
     select({ type: 'object', id: h.id });
     const tt = getTime();
     const base = samplePose(h.keyframes, tt);
-    beginGesture();
-    drag.current = { kind: 'move', id: h.id, t: tt, px: p.x, py: p.y, x: base.x, y: base.y };
+    drag.current = { began: false, kind: 'move', id: h.id, t: tt, px: p.x, py: p.y, x: base.x, y: base.y };
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
   };
 
@@ -78,9 +78,8 @@ export function Stage() {
     const base = samplePose(o.keyframes, tt);
     const shown = objectPoseAt(o, tt, true);
     const p = toStage(e);
-    beginGesture();
-    if (kind === 'scale') drag.current = { kind, id: o.id, t: tt, cx: shown.x, cy: shown.y, d0: Math.hypot(p.x - shown.x, p.y - shown.y) || 1, s0: base.scale };
-    else drag.current = { kind, id: o.id, t: tt, cx: shown.x, cy: shown.y, a0: Math.atan2(p.y - shown.y, p.x - shown.x), r0: base.rot };
+    if (kind === 'scale') drag.current = { began: false, kind, id: o.id, t: tt, cx: shown.x, cy: shown.y, d0: Math.hypot(p.x - shown.x, p.y - shown.y) || 1, s0: base.scale };
+    else drag.current = { began: false, kind, id: o.id, t: tt, cx: shown.x, cy: shown.y, a0: Math.atan2(p.y - shown.y, p.x - shown.x), r0: base.rot };
     overlayRef.current!.setPointerCapture(e.pointerId);
   };
 
@@ -88,6 +87,12 @@ export function Stage() {
     const d = drag.current;
     if (!d) return;
     const p = toStage(e);
+    // A plain click must not create an undo step (it would also wipe the Redo stack).
+    if (!d.began) {
+      if (d.kind === 'move' && Math.hypot(p.x - d.px, p.y - d.py) < 2) return;
+      beginGesture();
+      d.began = true;
+    }
     if (d.kind === 'move') posePatch(d.id, d.t, { x: d.x + p.x - d.px, y: d.y + p.y - d.py }, false);
     else if (d.kind === 'scale') posePatch(d.id, d.t, { scale: Math.min(8, Math.max(0.1, (d.s0 * Math.hypot(p.x - d.cx, p.y - d.cy)) / d.d0)) }, false);
     else {

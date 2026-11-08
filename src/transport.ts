@@ -21,13 +21,14 @@ export async function play(): Promise<void> {
     handle = null;
     return;
   }
-  const wall0 = performance.now();
+  const wall0 = handle.wallStart; // locks the picture to when the audio is really heard
   setPlaying(true);
   const loop = () => {
-    const t = from + (performance.now() - wall0) / 1000;
-    if (t >= project.duration) {
+    const t = Math.max(from, from + (performance.now() - wall0) / 1000);
+    const end = getState().project.duration; // read live so changing the length mid-play is safe
+    if (t >= end) {
       pause();
-      setTime(project.duration);
+      setTime(end);
       return;
     }
     setTime(t);

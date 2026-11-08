@@ -68,6 +68,8 @@ Choices are 720p or 1080p at 30 fps.
 * Playback preview of computer voices uses the browser's speech engine, so timing can drift slightly from the bars; the length of a clip comes from the last time you pressed "Hear it" (or an estimate).
 * The ElevenLabs integration was tested against a mocked endpoint, **not** the live service, so the first real generation is worth a quick check.
 * Projects live in this browser's storage; use *Project → Save file…* for backups.
+* Sound is scheduled when you press Play, so changes you make to voices/music *while it is playing* are heard on the next play (pictures update immediately).
+* Audio recordings of deleted clips stay in browser storage until you clear site data (they're small, and Undo needs them).
 
 ## Code map
 

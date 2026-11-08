@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyEase, assignLanes, findKeyframeIndex, fitToDuration, emptyProject, samplePose, upsertKeyframe, type Keyframe } from './model';
+import { applyEase, assignLanes, countDropped, findKeyframeIndex, fitToDuration, emptyProject, normalizeProject, samplePose, upsertKeyframe, type Keyframe } from './model';
 
 const kf = (t: number, x: number, ease: Keyframe['ease'] = 'linear'): Keyframe => ({ t, x, y: 100, scale: 1, rot: 0, opacity: 1, flip: false, ease });
 
@@ -71,5 +71,38 @@ describe('fitToDuration', () => {
     const out = fitToDuration(p);
     expect(out.audio[0].duration).toBeCloseTo(2);
     expect(out.backgrounds[0].end).toBe(10);
+  });
+
+  it('removes clips that start at/after the new end instead of leaving invisible orphans', () => {
+    const p = emptyProject();
+    p.duration = 10;
+    p.audio.push({ id: 'late', kind: 'voice', start: 100, duration: 4, volume: 1, label: 'v' });
+    p.audio.push({ id: 'edge', kind: 'voice', start: 9.9, duration: 4, volume: 1, label: 'v' }); // < 0.3s would remain
+    p.audio.push({ id: 'ok', kind: 'voice', start: 2, duration: 4, volume: 1, label: 'v' });
+    const out = fitToDuration(p);
+    expect(out.audio.map((a) => a.id)).toEqual(['ok']);
+    expect(countDropped(p, 10)).toBe(2);
+    expect(countDropped(p, 180)).toBe(0);
+  });
+});
+
+describe('normalizeProject', () => {
+  it('rejects things that are not StoryBox projects', () => {
+    expect(normalizeProject(null)).toBeNull();
+    expect(normalizeProject({ version: 2 })).toBeNull();
+    expect(normalizeProject('x')).toBeNull();
+  });
+  it('repairs missing arrays and drops malformed entries instead of crashing later', () => {
+    const out = normalizeProject({
+      version: 1, duration: 9999,
+      objects: [{ id: 'a', start: 0, end: 5, keyframes: [{ t: 0, x: 1, y: 2 }] }, { id: 'bad', start: 0, end: 5, keyframes: [] }, null],
+      audio: [{ id: 'm', kind: 'music', start: 0, duration: 4 }, { id: 'weird', kind: 'nope', start: 0, duration: 4 }],
+    })!;
+    expect(out.duration).toBe(180);
+    expect(out.backgrounds).toEqual([]);
+    expect(out.objects.map((o) => o.id)).toEqual(['a']);
+    expect(out.objects[0].entrance).toBe('pop');
+    expect(out.audio.map((a) => a.id)).toEqual(['m']);
+    expect(out.audio[0].volume).toBe(1);
   });
 });

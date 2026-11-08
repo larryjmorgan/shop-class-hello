@@ -1,5 +1,5 @@
 import { getBlob, putBlob } from './db';
-import type { Project } from './model';
+import { normalizeProject, type Project } from './model';
 
 interface FileFormat {
   app: 'storybox';
@@ -29,12 +29,18 @@ export async function projectToFile(p: Project): Promise<Blob> {
 }
 
 export async function projectFromFile(file: File): Promise<Project> {
-  const j = JSON.parse(await file.text()) as FileFormat;
-  if (j?.app !== 'storybox' || j.project?.version !== 1) throw new Error('That does not look like a StoryBox project file.');
-  for (const [key, url] of Object.entries(j.blobs ?? {})) {
-    await putBlob(key, await (await fetch(url)).blob());
+  let j: FileFormat;
+  try {
+    j = JSON.parse(await file.text()) as FileFormat;
+  } catch {
+    throw new Error('That file is not valid JSON, so it can’t be a StoryBox project.');
   }
-  return j.project;
+  const project = j?.app === 'storybox' ? normalizeProject(j.project) : null;
+  if (!project) throw new Error('That does not look like a StoryBox project file.');
+  for (const [key, url] of Object.entries(j.blobs ?? {})) {
+    if (typeof url === 'string' && url.startsWith('data:')) await putBlob(key, await (await fetch(url)).blob());
+  }
+  return project;
 }
 
 export function download(blob: Blob, name: string) {

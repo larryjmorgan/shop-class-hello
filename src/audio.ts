@@ -277,6 +277,8 @@ export function loadBuffer(c: AudioClip): Promise<AudioBuffer | null> {
       }
     })();
     buffers.set(key, p);
+    // A failed/missing load must not be remembered forever (e.g. the blob arrives later from a project file).
+    void p.then((b) => { if (!b && buffers.get(key) === p) buffers.delete(key); });
   }
   return p;
 }
@@ -395,6 +397,8 @@ export async function startMicRecording(): Promise<{ stop: () => Promise<Blob> }
 
 export interface PlayHandle {
   stop: () => void;
+  /** performance.now() value at which project time `fromT` is heard (audio starts slightly after the call). */
+  wallStart: number;
 }
 
 const DUCK = 0.32;
@@ -440,7 +444,10 @@ export async function startPlayback(p: Project, fromT: number, dest: AudioNode, 
   const nodes: AudioScheduledSourceNode[] = [];
   const timers: number[] = [];
 
-  const voiceIv: [number, number][] = p.audio.filter((c) => c.kind === 'voice').map((c) => [c.start, c.start + c.duration]);
+  // Computer-voice clips are only audible in preview, so they only duck the music there.
+  const voiceIv: [number, number][] = p.audio
+    .filter((c) => c.kind === 'voice' && (opts.speakers || c.provider !== 'browser'))
+    .map((c) => [c.start, c.start + c.duration]);
   const duck = p.duckMusic ? duckCurve(voiceIv) : [];
 
   for (const clip of p.audio) {
@@ -498,6 +505,7 @@ export async function startPlayback(p: Project, fromT: number, dest: AudioNode, 
   }
 
   return {
+    wallStart: performance.now() + (base - ac.currentTime) * 1000,
     stop: () => {
       timers.forEach((t) => clearTimeout(t));
       nodes.forEach((n) => {

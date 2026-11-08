@@ -66,7 +66,9 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const mime = pickMime();
   const silent = countBrowserVoices(project);
 
-  useEffect(() => () => { abort.current?.abort(); if (url) URL.revokeObjectURL(url); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const urlRef = useRef('');
+  urlRef.current = url;
+  useEffect(() => () => { abort.current?.abort(); if (urlRef.current) URL.revokeObjectURL(urlRef.current); }, []);
 
   const run = async () => {
     pause();
@@ -87,7 +89,12 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const close = () => { abort.current?.abort(); onClose(); };
+  const close = () => {
+    // Esc or a stray click must not throw away a recording that's minutes in.
+    if (phase === 'running' && !window.confirm('Stop the export? Progress so far will be lost.')) return;
+    abort.current?.abort();
+    onClose();
+  };
 
   return (
     <Modal title="Export video" onClose={close}>

@@ -67,8 +67,15 @@ export async function exportVideo(project: Project, opts: ExportOptions): Promis
   const stopped = new Promise<void>((res) => (rec.onstop = () => res()));
 
   rec.start(1000);
-  const handle = await startPlayback(project, 0, audioDest, { speakers: false });
-  const t0 = performance.now();
+  let handle;
+  try {
+    handle = await startPlayback(project, 0, audioDest, { speakers: false });
+  } catch (err) {
+    rec.stop();
+    stream.getTracks().forEach((tr) => tr.stop());
+    throw err;
+  }
+  const t0 = handle.wallStart;
   const total = project.duration;
   let aborted = false;
 
@@ -78,7 +85,7 @@ export async function exportVideo(project: Project, opts: ExportOptions): Promis
         aborted = true;
         return resolve();
       }
-      const t = Math.min(total, (performance.now() - t0) / 1000);
+      const t = Math.min(total, Math.max(0, (performance.now() - t0) / 1000));
       renderFrame(g, project, t);
       opts.onProgress(t / total, `Recording… ${Math.floor(t)}s of ${total}s`);
       if (t >= total) return resolve();
