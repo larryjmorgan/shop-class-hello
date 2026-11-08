@@ -11,6 +11,13 @@ window.addEventListener('pagehide', flushSave);
 document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flushSave());
 requestPersistentStorage();
 
+// Offline support + "Add to Home Screen". Production builds only, so development is never served from a cache.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch((e) => console.warn('Offline mode unavailable:', e));
+  });
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>

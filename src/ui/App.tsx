@@ -180,6 +180,7 @@ function SettingsHelp({ onClose }: { onClose: () => void }) {
         <li><b>Export</b>: records your story to a video file in real time (up to 3 minutes).</li>
       </ol>
       <p className="hint">Shortcuts: Space play/pause · ←/→ nudge playhead (Shift = 1s) · Delete removes the selected item · Ctrl/⌘+Z undo.</p>
+      <p className="hint">StoryBox Studio · build {__BUILD_ID__}{window.matchMedia?.('(display-mode: standalone)').matches ? ' · installed app' : ''}</p>
     </Modal>
   );
 }
