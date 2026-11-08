@@ -283,10 +283,6 @@ export function loadBuffer(c: AudioClip): Promise<AudioBuffer | null> {
   return p;
 }
 
-export function forgetBuffer(blobKey: string) {
-  buffers.delete(`b:${blobKey}`);
-}
-
 export async function decodeBlobDuration(blob: Blob): Promise<number> {
   const buf = await getAudioContext().decodeAudioData(await blob.arrayBuffer());
   return buf.duration;
@@ -294,6 +290,13 @@ export async function decodeBlobDuration(blob: Blob): Promise<number> {
 
 export async function preloadAudio(p: Project): Promise<void> {
   await Promise.all(p.audio.map(loadBuffer));
+}
+
+/** Clips that should have recorded/generated/imported audio but whose data can't be found on this device. */
+export async function findMissingAudio(p: Project): Promise<AudioClip[]> {
+  const stored = p.audio.filter((c) => c.blobKey);
+  const loaded = await Promise.all(stored.map(loadBuffer));
+  return stored.filter((_, i) => !loaded[i]);
 }
 
 /** Length of one loop of a music preset (seconds). */
@@ -373,13 +376,44 @@ export async function elevenSpeak(text: string, voiceId: string, apiKey: string)
 // Microphone recording
 // ---------------------------------------------------------------------------
 
-export async function startMicRecording(): Promise<{ stop: () => Promise<Blob> }> {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+export class MicError extends Error {}
+
+export interface MicRecording {
+  /** Finish and return the recording. */
+  stop: () => Promise<Blob>;
+  /** Throw the recording away and release the microphone immediately. */
+  cancel: () => void;
+}
+
+export async function startMicRecording(): Promise<MicRecording> {
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+    throw new MicError(
+      window.isSecureContext
+        ? 'This browser can’t record audio.'
+        : 'Browsers only allow the microphone on a secure page. Open StoryBox at http://localhost:5173 on this computer (not a network address like 192.168…), or serve it over https.',
+    );
+  }
+  let stream: MediaStream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+  } catch (e) {
+    const name = (e as DOMException).name;
+    throw new MicError(
+      name === 'NotFoundError' ? 'No microphone was found.'
+        : name === 'NotAllowedError' || name === 'SecurityError' ? 'Microphone access was blocked. Allow it in the browser address bar and try again.'
+        : 'The microphone could not be started (is another app using it?).',
+    );
+  }
   const rec = new MediaRecorder(stream);
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
   rec.start();
   return {
+    cancel: () => {
+      rec.onstop = null;
+      if (rec.state !== 'inactive') rec.stop();
+      stream.getTracks().forEach((t) => t.stop());
+    },
     stop: () =>
       new Promise((resolve) => {
         rec.onstop = () => {

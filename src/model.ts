@@ -81,7 +81,6 @@ export function uid(prefix = 'id'): string {
 }
 
 export const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-export const round1 = (v: number) => Math.round(v * 10) / 10;
 export const snap = (v: number, step = 0.1) => Math.round(v / step) * step;
 
 // ---------- easing ----------
@@ -211,10 +210,6 @@ export function emptyProject(title = 'My Story'): Project {
   return { version: 1, title, duration: 30, duckMusic: true, objects: [], backgrounds: [], audio: [] };
 }
 
-export function clipEnd(c: AudioClip): number {
-  return c.start + c.duration;
-}
-
 /** Greedy lane assignment so overlapping clips are drawn on separate rows. */
 export function assignLanes<T extends { id: string }>(items: T[], startOf: (i: T) => number, endOf: (i: T) => number): { lanes: Map<string, number>; count: number } {
   const sorted = [...items].sort((a, b) => startOf(a) - startOf(b));
@@ -239,8 +234,9 @@ export function estimateSpeechSeconds(text: string, rate = 1): number {
 }
 
 export function fmtTime(s: number): string {
-  const m = Math.floor(s / 60);
-  const sec = s - m * 60;
+  const total = Math.round(Math.max(0, s) * 10) / 10; // round first so 59.97 shows 1:00.0, never 0:60.0
+  const m = Math.floor(total / 60);
+  const sec = total - m * 60;
   return `${m}:${sec.toFixed(1).padStart(4, '0')}`;
 }
 
@@ -274,7 +270,8 @@ export function countDropped(p: Project, d: number): number {
   return p.objects.length + p.backgrounds.length + p.audio.length - (fitted.objects.length + fitted.backgrounds.length + fitted.audio.length);
 }
 
-const OBJECT_DEFAULTS: Partial<SceneObject> = { behavior: 'none', entrance: 'pop', color: '#ffffff' };
+const OBJECT_DEFAULTS: Partial<SceneObject> = { behavior: 'none', entrance: 'pop' };
+const HEX = /^#[0-9a-f]{6}$/i;
 const AUDIO_DEFAULTS: Partial<AudioClip> = { volume: 1 };
 
 /** Validate + repair a project loaded from storage or a file. Returns null if it isn't a StoryBox project. */
@@ -293,7 +290,7 @@ export function normalizeProject(raw: unknown): Project | null {
     title: typeof r.title === 'string' ? r.title : 'My Story',
     duration,
     duckMusic: r.duckMusic !== false,
-    objects: objects.map((o) => ({ ...OBJECT_DEFAULTS, ...o, name: typeof o.name === 'string' ? o.name : o.id, keyframes: [...o.keyframes].sort((a, b) => a.t - b.t) })),
+    objects: objects.map((o) => ({ ...OBJECT_DEFAULTS, ...o, color: HEX.test(String(o.color)) ? o.color : '#ffffff', name: typeof o.name === 'string' ? o.name : o.id, keyframes: [...o.keyframes].sort((a, b) => a.t - b.t) })),
     backgrounds,
     audio: audio.map((a) => ({ ...AUDIO_DEFAULTS, ...a, label: typeof a.label === 'string' ? a.label : a.kind })),
   });

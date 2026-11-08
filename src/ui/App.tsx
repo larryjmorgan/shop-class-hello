@@ -2,20 +2,22 @@ import { useEffect, useRef, useState } from 'react';
 import { MAX_DURATION, MIN_DURATION, clamp, countDropped, fmtTime } from '../model';
 import { download, projectFromFile, projectToFile, safeName } from '../projectFile';
 import {
-  deleteSelection, getState, getTime, loadProject, loadSample, newProject, redo, setDuration, setTime, setTitle, undo, useStore, usePlaying, useTime,
+  deleteSelection, deleteSelectedKeyframe, getState, getTime, loadProject, loadSample, newProject, redo, setDuration, setTime, setTitle, undo, useStore, usePlaying, useTime,
 } from '../store';
 import { pause, seek, toggle } from '../transport';
 import { ExportDialog, Modal, SettingsDialog } from './Dialogs';
 import { Inspector } from './Inspector';
 import { Library } from './Library';
 import { Stage } from './Stage';
-import { Timeline, deleteSelectedKeyframe } from './Timeline';
+import { Timeline } from './Timeline';
 
 /** Length box: edit freely, apply on Enter/blur (applying per keystroke turned "90" into a 9-second story first). */
 function LengthInput() {
   const duration = useStore((s) => s.project.duration);
   const [draft, setDraft] = useState<string | null>(null);
+  const cancelled = useRef(false);
   const commit = () => {
+    if (cancelled.current) { cancelled.current = false; setDraft(null); return; }
     if (draft === null) return;
     const n = Number(draft);
     setDraft(null);
@@ -29,9 +31,16 @@ function LengthInput() {
     <input
       type="number" min={MIN_DURATION} max={MAX_DURATION} value={draft ?? duration} aria-label="Story length in seconds"
       onChange={(e) => setDraft(e.target.value)} onBlur={commit}
-      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') { setDraft(null); e.currentTarget.blur(); } }}
+      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') { cancelled.current = true; e.currentTarget.blur(); } }}
     />
   );
+}
+
+/** True when the focused element takes typed text (so single-key shortcuts must stay out of the way). */
+function isTyping(el: HTMLElement): boolean {
+  if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable) return true;
+  // Sliders/checkboxes/buttons don't take typed text, so shortcuts still work while they have focus.
+  return el.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'file'].includes((el as HTMLInputElement).type);
 }
 
 function Transport() {
@@ -52,6 +61,7 @@ export function App() {
   const project = useStore((s) => s.project);
   const canUndo = useStore((s) => s.past.length > 0);
   const canRedo = useStore((s) => s.future.length > 0);
+  const saveFailed = useStore((s) => s.saveFailed);
   const [dialog, setDialog] = useState<'none' | 'export' | 'settings' | 'help'>('none');
   const [tall, setTall] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -60,8 +70,7 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
       const inputType = el.tagName === 'INPUT' ? (el as HTMLInputElement).type : '';
-      // Sliders/checkboxes/buttons don't take typed text, so shortcuts should still work while they have focus.
-      const typing = el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable || (el.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'file'].includes(inputType));
+      const typing = isTyping(el);
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key.toLowerCase() === 'z') {
         if (typing) return; // let text fields use their own undo
@@ -81,14 +90,20 @@ export function App() {
       else if (e.key === 'ArrowRight') seek(getTime() + (e.shiftKey ? 1 : 0.1));
       else if (e.key === 'Home') seek(0);
     };
+    // Some browsers fire a button's click on Space *key-up*; stop that, or Space would play AND re-press the focused button.
+    const onKeyUp = (e: KeyboardEvent) => { if (e.code === 'Space' && !isTyping(e.target as HTMLElement)) e.preventDefault(); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKeyUp);
+    };
   }, []);
 
-  const confirmDiscard = () => window.confirm('Start over? Your current story is saved in this browser, but this will replace it. Use “Save file” first if you want to keep it.');
+  const confirmDiscard = (msg = 'Start over? Your current story is saved in this browser, but this will replace it. Use “Save file” first if you want to keep it.') => window.confirm(msg);
 
   return (
-    <div className={`app${tall ? ' tall' : ''}`}>
+    <div className={`app${tall ? ' tall' : ''}${saveFailed ? ' has-banner' : ''}`}>
       <header className="topbar">
         <div className="brand">🎬 <span>StoryBox</span></div>
         <input className="title" value={project.title} onChange={(e) => setTitle(e.target.value)} aria-label="Story title" />
@@ -105,7 +120,10 @@ export function App() {
           <div className="menu-pop" onClick={(e) => ((e.currentTarget.parentElement as HTMLDetailsElement).open = false)}>
             <button onClick={() => { if (confirmDiscard()) { pause(); setTime(0); newProject(); } }}>✨ New blank story</button>
             <button onClick={() => { if (confirmDiscard()) { pause(); setTime(0); loadSample(); } }}>🐰 Load sample story</button>
-            <button onClick={async () => download(await projectToFile(getState().project), `${safeName(getState().project.title)}.storybox.json`)}>💾 Save file…</button>
+            <button onClick={async () => {
+              try { download(await projectToFile(getState().project), `${safeName(getState().project.title)}.storybox.json`); }
+              catch { alert('Sorry, the project file could not be created.'); }
+            }}>💾 Save file…</button>
             <button onClick={() => fileRef.current?.click()}>📂 Open file…</button>
           </div>
         </details>
@@ -113,12 +131,19 @@ export function App() {
           const f = e.target.files?.[0];
           e.target.value = '';
           if (!f) return;
-          try { pause(); setTime(0); loadProject(await projectFromFile(f)); } catch (err) { alert((err as Error).message); }
+          try {
+            const opened = await projectFromFile(f); // validate first so a bad file never replaces the current story
+            if (!confirmDiscard('Open this file? It will replace the story you are working on (use “Save file” first to keep that one).')) return;
+            pause(); setTime(0); loadProject(opened);
+          } catch (err) { alert((err as Error).message); }
         }} />
         <button className="btn" onClick={() => setDialog('settings')} title="ElevenLabs key">⚙ Settings</button>
         <button className="btn" onClick={() => setDialog('help')} aria-label="Help">?</button>
         <button className="btn primary" onClick={() => setDialog('export')}>🎬 Export video</button>
       </header>
+      {saveFailed && (
+        <div className="banner" role="alert">⚠ Your story couldn’t be autosaved (browser storage is full or blocked). Use <b>Project → Save file…</b> now so you don’t lose your work.</div>
+      )}
       <main className="workspace">
         <Library />
         <section className="center">

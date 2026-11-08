@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject } from './model';
-import { addAudio, addKeyframeAt, addObject, getState, loadProject, mutate, redo, setAutoKey, setDuration, setTitle, undo, beginGesture } from './store';
+import { addAudio, addKeyframeAt, addObject, beginGesture, deleteKeyframe, deleteSelectedKeyframe, getState, loadProject, mutate, posePatch, redo, select, setAutoKey, setDuration, setTitle, undo } from './store';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -94,5 +94,66 @@ describe('keyframes', () => {
     const o = getState().project.objects.find((x) => x.id === id)!;
     expect(o.keyframes.map((k) => k.t)).toEqual([0, 5]);
     expect(getState().selectedKfT).toBe(5);
+  });
+});
+
+describe('keyframe deletion', () => {
+  const setup = () => {
+    loadProject({ ...emptyProject(), duration: 30 });
+    const id = addObject('character', 'bunny', 0)!;
+    addKeyframeAt(id, 5);
+    return id;
+  };
+
+  it('Delete removes a real selected keyframe and reports the key press as used', () => {
+    const id = setup();
+    select({ type: 'object', id }, 5);
+    expect(deleteSelectedKeyframe()).toBe(true);
+    expect(getState().project.objects[0].keyframes.map((k) => k.t)).toEqual([0]);
+    expect(getState().selectedKfT).toBeNull();
+  });
+
+  it('a stale selection (keyframe no longer exists) falls through, so Delete can remove the object', () => {
+    const id = setup();
+    select({ type: 'object', id }, 17.3);
+    expect(deleteSelectedKeyframe()).toBe(false);
+    expect(getState().selectedKfT).toBeNull();
+  });
+
+  it('deleting the only keyframe is a no-op and records no undo step', () => {
+    loadProject({ ...emptyProject(), duration: 30 });
+    const id = addObject('prop', 'sun', 0)!;
+    const before = getState().past.length;
+    deleteKeyframe(id, 0);
+    expect(getState().project.objects[0].keyframes).toHaveLength(1);
+    expect(getState().past.length).toBe(before);
+  });
+
+  it('undo clears the keyframe selection', () => {
+    const id = setup();
+    select({ type: 'object', id }, 5);
+    undo();
+    expect(getState().selectedKfT).toBeNull();
+  });
+});
+
+describe('posePatch outside the object bar', () => {
+  it('snaps the edit to the nearest edge instead of making a stray early keyframe', () => {
+    loadProject({ ...emptyProject(), duration: 30 });
+    const id = addObject('character', 'bunny', 10)!;
+    posePatch(id, 2, { x: 999 }); // playhead is before the object starts
+    const ks = getState().project.objects[0].keyframes;
+    expect(ks.map((k) => k.t)).toEqual([10]);
+    expect(ks[0].x).toBe(999);
+  });
+});
+
+describe('music near the end', () => {
+  it('makes room instead of silently adding nothing', () => {
+    loadProject({ ...emptyProject(), duration: 30 });
+    addAudio({ kind: 'music', start: 29.9, duration: 20, volume: 1, label: 'm', preset: 'sunny' });
+    const p = getState().project;
+    expect(p.audio).toHaveLength(1);
+    expect(p.duration).toBeGreaterThanOrEqual(32);
   });
 });

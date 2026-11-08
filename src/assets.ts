@@ -166,7 +166,10 @@ export const PROPS: ArtAsset[] = [
     ['#ff5d73', '#ff9f5a', '#ffd23f', '#6fdc8c', '#5db5ff', '#a07cff']
       .map((col, i) => `<path d="M${14 + i * 11} 160 A${86 - i * 11} ${86 - i * 11} 0 0 1 ${186 - i * 11} 160" stroke="${col}" stroke-width="12" fill="none"/>`).join('')),
   prop('ball', 'Ball', '⚽', ['#ff5d73', '#5db5ff', '#ffd23f'], (c) =>
-    `<circle cx="100" cy="100" r="62" fill="${c}"/><path d="M42 100 Q100 60 158 100" stroke="#fff" stroke-width="10" fill="none"/><path d="M42 100 Q100 140 158 100" stroke="#fff" stroke-width="10" fill="none" opacity=".0"/><circle cx="76" cy="76" r="9" fill="#fff" opacity=".4"/>`),
+    `<defs><clipPath id="b"><circle cx="100" cy="100" r="62"/></clipPath></defs>
+     <circle cx="100" cy="100" r="62" fill="${c}"/>
+     <g clip-path="url(#b)"><path d="M100 30 Q60 100 100 170 Q140 100 100 30Z" fill="#fff"/><path d="M100 30 Q28 70 40 150 L20 150 L20 30Z" fill="${shade(c, 0.22)}"/><path d="M100 30 Q172 70 160 150 L180 150 L180 30Z" fill="${shade(c, -0.12)}"/></g>
+     <circle cx="100" cy="100" r="62" fill="none" stroke="${shade(c, -0.2)}" stroke-width="4"/><ellipse cx="78" cy="74" rx="10" ry="16" fill="#fff" opacity=".45" transform="rotate(30 78 74)"/>`),
   prop('butterfly', 'Butterfly', '🦋', ['#b78bff', '#ff8fc7', '#5db5ff'], (c) =>
     `<ellipse cx="64" cy="82" rx="42" ry="34" fill="${c}" transform="rotate(-20 64 82)"/><ellipse cx="136" cy="82" rx="42" ry="34" fill="${c}" transform="rotate(20 136 82)"/>
      <ellipse cx="72" cy="128" rx="28" ry="22" fill="${shade(c, 0.12)}" transform="rotate(20 72 128)"/><ellipse cx="128" cy="128" rx="28" ry="22" fill="${shade(c, 0.12)}" transform="rotate(-20 128 128)"/>

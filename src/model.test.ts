@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyEase, assignLanes, countDropped, findKeyframeIndex, fitToDuration, emptyProject, normalizeProject, samplePose, upsertKeyframe, type Keyframe } from './model';
+import { applyEase, assignLanes, countDropped, fmtTime, findKeyframeIndex, fitToDuration, emptyProject, normalizeProject, samplePose, upsertKeyframe, type Keyframe } from './model';
 
 const kf = (t: number, x: number, ease: Keyframe['ease'] = 'linear'): Keyframe => ({ t, x, y: 100, scale: 1, rot: 0, opacity: 1, flip: false, ease });
 
@@ -104,5 +104,24 @@ describe('normalizeProject', () => {
     expect(out.objects[0].entrance).toBe('pop');
     expect(out.audio.map((a) => a.id)).toEqual(['m']);
     expect(out.audio[0].volume).toBe(1);
+  });
+});
+
+describe('fmtTime', () => {
+  it('never shows 60 seconds', () => {
+    expect(fmtTime(59.97)).toBe('1:00.0');
+    expect(fmtTime(119.96)).toBe('2:00.0');
+    expect(fmtTime(0)).toBe('0:00.0');
+    expect(fmtTime(65.25)).toBe('1:05.3'); // rounds to tenths
+    expect(fmtTime(-3)).toBe('0:00.0');
+  });
+});
+
+describe('normalizeProject colours', () => {
+  it('replaces anything that is not a #rrggbb colour (it is spliced into SVG markup)', () => {
+    const mk = (color: unknown) => normalizeProject({ version: 1, duration: 30, objects: [{ id: 'a', color, start: 0, end: 5, keyframes: [{ t: 0, x: 1, y: 2 }] }] })!.objects[0].color;
+    expect(mk('#ff00aa')).toBe('#ff00aa');
+    expect(mk('"><script>')).toBe('#ffffff');
+    expect(mk(undefined)).toBe('#ffffff');
   });
 });

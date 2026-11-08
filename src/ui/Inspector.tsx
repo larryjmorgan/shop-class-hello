@@ -78,7 +78,7 @@ export function Inspector() {
           <Num label="Opacity" value={raw.opacity} step={0.1} min={0} max={1} onChange={(v) => set({ opacity: Math.min(1, Math.max(0, v)) })} />
         </div>
         <div className="row-btns">
-          <button className="btn small" onClick={() => set({ flip: !raw.flip })}>↔ Flip</button>
+          {o.kind !== 'text' && <button className="btn small" onClick={() => set({ flip: !raw.flip })}>↔ Flip</button>}
           <button className="btn small" onClick={() => addKeyframeAt(o.id, t)} disabled={kfIdx >= 0 || !onStage} title="Add a keyframe at the playhead with the current pose">◆ Key here</button>
           <button className="btn small" onClick={() => kfSel >= 0 && deleteKeyframe(o.id, selectedKfT!)} disabled={kfSel < 0 || o.keyframes.length <= 1}>Remove ◆</button>
         </div>
@@ -152,8 +152,8 @@ export function Inspector() {
       <label className="field">Volume {Math.round(c.volume * 100)}%
         <input type="range" min={0} max={1.5} step={0.05} value={c.volume} onChange={(e) => updateAudio(c.id, (x) => { x.volume = Number(e.target.value); }, true, `vol:${c.id}`)} />
       </label>
-      <Num label="Start (s)" value={c.start} step={0.1} min={0} onChange={(v) => updateAudio(c.id, (x) => { x.start = Math.max(0, v); }, true, `astart:${c.id}`)} />
-      <Num label="Length (s)" value={c.duration} step={0.1} min={0.3} onChange={(v) => updateAudio(c.id, (x) => { x.duration = Math.max(0.3, v); }, true, `adur:${c.id}`)} />
+      <Num label="Start (s)" value={c.start} step={0.1} min={0} onChange={(v) => updateAudio(c.id, (x) => { x.start = Math.min(Math.max(0, v), Math.max(0, project.duration - x.duration)); }, true, `astart:${c.id}`)} />
+      <Num label="Length (s)" value={c.duration} step={0.1} min={0.3} onChange={(v) => updateAudio(c.id, (x) => { x.duration = Math.min(Math.max(0.3, v), Math.max(0.3, project.duration - x.start)); }, true, `adur:${c.id}`)} />
       <button className="btn small danger" onClick={() => { deleteSelection(); select({ type: 'none' }); }}>🗑 Delete</button>
     </aside>
   );

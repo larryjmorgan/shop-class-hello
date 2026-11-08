@@ -15,6 +15,8 @@ export interface ExportResult {
   mime: string;
   ext: 'mp4' | 'webm';
   skippedBrowserVoices: number;
+  /** The tab was in the background at some point, so part of the picture may have frozen. */
+  tabWasHidden: boolean;
 }
 
 // Prefer H.264 + AAC in MP4 (plays on iPads/phones/YouTube). Fall back to WebM. A bare 'video/mp4'
@@ -66,11 +68,23 @@ export async function exportVideo(project: Project, opts: ExportOptions): Promis
   rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
   const stopped = new Promise<void>((res) => (rec.onstop = () => res()));
 
+  // Keep the screen awake and notice if the tab is hidden (browsers pause drawing in background tabs).
+  let tabWasHidden = document.visibilityState === 'hidden';
+  const onVisibility = () => { if (document.visibilityState === 'hidden') tabWasHidden = true; };
+  document.addEventListener('visibilitychange', onVisibility);
+  let wake: WakeLockSentinel | null = null;
+  try { wake = (await navigator.wakeLock?.request('screen')) ?? null; } catch { /* not allowed: fine */ }
+  const cleanup = () => {
+    document.removeEventListener('visibilitychange', onVisibility);
+    void wake?.release().catch(() => undefined);
+  };
+
   rec.start(1000);
   let handle;
   try {
     handle = await startPlayback(project, 0, audioDest, { speakers: false });
   } catch (err) {
+    cleanup();
     rec.stop();
     stream.getTracks().forEach((tr) => tr.stop());
     throw err;
@@ -100,10 +114,11 @@ export async function exportVideo(project: Project, opts: ExportOptions): Promis
   if (rec.state !== 'inactive') rec.stop();
   await stopped;
   stream.getTracks().forEach((t) => t.stop());
+  cleanup();
   if (aborted) throw new DOMException('Export cancelled', 'AbortError');
 
   const actual = rec.mimeType || mime;
   const isMp4 = actual.startsWith('video/mp4');
   const type = isMp4 ? 'video/mp4' : 'video/webm';
-  return { blob: new Blob(chunks, { type }), mime: actual, ext: isMp4 ? 'mp4' : 'webm', skippedBrowserVoices: countBrowserVoices(project) };
+  return { blob: new Blob(chunks, { type }), mime: actual, ext: isMp4 ? 'mp4' : 'webm', skippedBrowserVoices: countBrowserVoices(project), tabWasHidden };
 }

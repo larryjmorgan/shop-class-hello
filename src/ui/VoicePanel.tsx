@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  browserVoices, decodeBlobDuration, elevenSpeak, elevenVoices, getElevenKey, speakBrowser, startMicRecording, stopBrowserSpeech,
+  MicError, browserVoices, decodeBlobDuration, elevenSpeak, elevenVoices, getElevenKey, speakBrowser, startMicRecording, stopBrowserSpeech,
+  type MicRecording,
 } from '../audio';
 import { putBlob } from '../db';
 import { estimateSpeechSeconds, uid } from '../model';
 import { addAudio, getTime, useStore } from '../store';
 
 type Provider = 'browser' | 'eleven' | 'mic';
+
+const NOT_SAVED = 'Added, but this browser could not save the audio for later. Export or use “Project → Save file…” before you close this page, or it will be lost.';
 
 export function VoicePanel() {
   const objects = useStore((s) => s.project.objects);
@@ -23,9 +26,25 @@ export function VoicePanel() {
   const [elVoiceId, setElVoiceId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [recording, setRecording] = useState<{ stop: () => Promise<Blob> } | null>(null);
+  const [recording, setRecording] = useState<MicRecording | null>(null);
+  const [recSeconds, setRecSeconds] = useState(0);
   const [effect, setEffect] = useState('1');
-  const measured = useRef<{ text: string; seconds: number } | null>(null);
+  const measured = useRef<{ text: string; rate: number; pitch: number; voiceId: string; seconds: number } | null>(null);
+  const recRef = useRef<MicRecording | null>(null);
+  recRef.current = recording;
+
+  // The microphone must never stay on after you leave this panel or switch tabs.
+  useEffect(() => () => recRef.current?.cancel(), []);
+  useEffect(() => {
+    if (provider !== 'mic' && recRef.current) { recRef.current.cancel(); setRecording(null); }
+  }, [provider]);
+  useEffect(() => {
+    if (!recording) return;
+    setRecSeconds(0);
+    const t0 = Date.now();
+    const id = window.setInterval(() => setRecSeconds(Math.floor((Date.now() - t0) / 1000)), 250);
+    return () => window.clearInterval(id);
+  }, [recording]);
   const hasKey = !!getElevenKey();
 
   // Follow the selected character so "who's talking" is usually already right.
@@ -61,14 +80,16 @@ export function VoicePanel() {
     setError('');
     stopBrowserSpeech();
     if (provider === 'browser') {
-      speakBrowser({ text, voiceId, rate, pitch, volume: 1 }, (s) => (measured.current = { text, seconds: s }));
+      speakBrowser({ text, voiceId, rate, pitch, volume: 1 }, (s) => (measured.current = { text, rate, pitch, voiceId, seconds: s }));
     } else if (provider === 'eleven') {
       setError('ElevenLabs voices use your credits. Use “Generate & add”, then press play on the timeline.');
     }
   };
 
   const addBrowser = () => {
-    const m = measured.current?.text === text ? measured.current.seconds : estimateSpeechSeconds(text, rate);
+    const ms = measured.current;
+    // Use the timed preview only if nothing that affects length has changed since.
+    const m = ms && ms.text === text && ms.rate === rate && ms.pitch === pitch && ms.voiceId === voiceId ? ms.seconds : estimateSpeechSeconds(text, rate);
     addAudio({ kind: 'voice', start: start(), duration: Math.max(0.8, m + 0.2), volume: 1, label: speakerName, text, characterId, provider: 'browser', voiceId, rate, pitch });
     setText('');
   };
@@ -80,9 +101,10 @@ export function VoicePanel() {
       const blob = await elevenSpeak(text, elVoiceId, getElevenKey());
       const len = await decodeBlobDuration(blob);
       const key = uid('blob');
-      await putBlob(key, blob);
+      const saved = await putBlob(key, blob);
       addAudio({ kind: 'voice', start: start(), duration: len, bufferDuration: len, volume: 1, label: speakerName, text, characterId, provider: 'eleven', voiceId: elVoiceId, blobKey: key });
       setText('');
+      if (!saved) setError(NOT_SAVED);
     } catch (e) {
       setError(e instanceof TypeError ? 'Could not reach ElevenLabs (network or CORS). Check your connection.' : (e as Error).message);
     } finally {
@@ -95,8 +117,8 @@ export function VoicePanel() {
     if (!recording) {
       try {
         setRecording(await startMicRecording());
-      } catch {
-        setError('Microphone access was blocked. Allow it in the browser address bar and try again.');
+      } catch (e) {
+        setError(e instanceof MicError ? e.message : 'The microphone could not be started.');
       }
       return;
     }
@@ -104,11 +126,12 @@ export function VoicePanel() {
     setRecording(null);
     const blob = await rec.stop();
     try {
-      const rate = Number(effect);
+      const playbackRate = Number(effect);
       const len = await decodeBlobDuration(blob);
       const key = uid('blob');
-      await putBlob(key, blob);
-      addAudio({ kind: 'voice', start: start(), duration: len / rate, bufferDuration: len, volume: 1, label: speakerName, text: text || '(recording)', characterId, provider: 'mic', rate, blobKey: key });
+      const saved = await putBlob(key, blob);
+      addAudio({ kind: 'voice', start: start(), duration: len / playbackRate, bufferDuration: len, volume: 1, label: speakerName, text: text || '(recording)', characterId, provider: 'mic', rate: playbackRate, blobKey: key });
+      if (!saved) setError(NOT_SAVED);
     } catch {
       setError('That recording could not be read.');
     }
@@ -180,7 +203,8 @@ export function VoicePanel() {
               <option value="0.8">Deep (big bear)</option>
             </select>
           </label>
-          <button className={`btn ${recording ? 'danger' : 'primary'}`} onClick={toggleRecord}>{recording ? '■ Stop & add' : '● Record'}</button>
+          <button className={`btn ${recording ? 'danger' : 'primary'}`} onClick={toggleRecord}>{recording ? `■ Stop & add (${recSeconds}s)` : '● Record'}</button>
+          {recording && <p className="recording" role="status"><span className="dot" /> Recording… speak now</p>}
         </>
       )}
       {error && <p className="error" role="alert">{error}</p>}

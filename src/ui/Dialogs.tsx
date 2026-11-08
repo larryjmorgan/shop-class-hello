@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { elevenVoices, getElevenKey, setElevenKey } from '../audio';
+import { elevenVoices, findMissingAudio, getElevenKey, setElevenKey } from '../audio';
 import { countBrowserVoices, exportVideo, pickMime } from '../exporter';
-import { fmtTime } from '../model';
+import { fmtTime, type AudioClip } from '../model';
 import { safeName } from '../projectFile';
 import { pause } from '../transport';
 import { useStore } from '../store';
@@ -62,9 +62,13 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const [url, setUrl] = useState('');
   const [ext, setExt] = useState<'mp4' | 'webm'>('mp4');
   const [skipped, setSkipped] = useState(0);
+  const [hiddenTab, setHiddenTab] = useState(false);
+  const [missing, setMissing] = useState<AudioClip[]>([]);
   const abort = useRef<AbortController | null>(null);
   const mime = pickMime();
   const silent = countBrowserVoices(project);
+
+  useEffect(() => { void findMissingAudio(project).then(setMissing); }, [project]);
 
   const urlRef = useRef('');
   urlRef.current = url;
@@ -81,6 +85,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       setUrl(URL.createObjectURL(r.blob));
       setExt(r.ext);
       setSkipped(r.skippedBrowserVoices);
+      setHiddenTab(r.tabWasHidden);
       setPhase('done');
     } catch (e) {
       if ((e as Error).name === 'AbortError') { setPhase('idle'); return; }
@@ -111,6 +116,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           <ul className="notes">
             <li>Exporting runs in <b>real time</b>: about {Math.ceil(project.duration)} seconds. Keep this tab open and visible until it finishes.</li>
             {silent > 0 && <li className="warn">⚠ {silent} voice clip{silent > 1 ? 's use' : ' uses'} a computer voice, which browsers can’t record. {silent > 1 ? 'They' : 'It'} will be <b>silent</b> in the video. Re-do {silent > 1 ? 'them' : 'it'} with ElevenLabs or the microphone.</li>}
+            {missing.length > 0 && <li className="warn">⚠ {missing.length} clip{missing.length > 1 ? 's have' : ' has'} lost {missing.length > 1 ? 'their' : 'its'} audio on this device ({missing.slice(0, 3).map((m) => `“${m.label}”`).join(', ')}{missing.length > 3 ? '…' : ''}) and will be silent. Record or generate {missing.length > 1 ? 'them' : 'it'} again.</li>}
             {project.audio.length === 0 && <li>No sound added yet. The video will be silent.</li>}
             {mime && !/avc1/.test(mime) && <li>This browser saves <b>.webm</b> (or a non-H.264 file). YouTube and computers play it; for iPads/iPhones convert it to .mp4 with <code>scripts/to-mp4.sh</code> (see README). Chrome on desktop usually saves a ready-to-share .mp4.</li>}
           </ul>
@@ -127,6 +133,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       {phase === 'done' && (
         <>
           <video src={url} controls className="preview-video" />
+          {hiddenTab && <p className="hint warn">⚠ This tab was in the background while recording, so parts of the picture may be frozen. Watch the preview; if it looks wrong, export again and keep this tab visible.</p>}
           {skipped > 0 && <p className="hint warn">{skipped} computer-voice clip{skipped > 1 ? 's are' : ' is'} silent in this file.</p>}
           <div className="row-btns">
             <a className="btn primary" href={url} download={`${safeName(project.title)}.${ext}`}>⬇ Download .{ext}</a>

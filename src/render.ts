@@ -83,13 +83,21 @@ export function objectPoseAt(o: SceneObject, t: number, settle = false): Pose {
   return pose;
 }
 
-export function textMetrics(ctx: CanvasRenderingContext2D, o: SceneObject): { w: number; h: number } {
+const TEXT_MAX_W = 1160; // keep long captions inside the 1280px stage
+
+/** Lines, and the shrink factor that makes them fit the stage width (1 = no shrink). */
+function textLayout(ctx: CanvasRenderingContext2D, o: SceneObject) {
   ctx.save();
   ctx.font = textFont(o);
   const lines = (o.text ?? '').split('\n');
-  const w = Math.max(40, ...lines.map((l) => ctx.measureText(l).width));
+  const raw = Math.max(40, ...lines.map((l) => ctx.measureText(l).width));
   ctx.restore();
-  return { w: w + 24, h: lines.length * TEXT_SIZE * 1.15 + 16 };
+  return { lines, raw, fit: Math.min(1, TEXT_MAX_W / (raw + 24)) };
+}
+
+export function textMetrics(ctx: CanvasRenderingContext2D, o: SceneObject): { w: number; h: number } {
+  const { lines, raw, fit } = textLayout(ctx, o);
+  return { w: (raw + 24) * fit, h: (lines.length * TEXT_SIZE * 1.15 + 16) * fit };
 }
 
 export const TEXT_SIZE = 96;
@@ -106,7 +114,10 @@ export function measureObject(o: SceneObject): { w: number; h: number } {
   return { w: OBJ_BASE, h: OBJ_BASE };
 }
 
-export function renderFrame(ctx: CanvasRenderingContext2D, p: Project, t: number, settle = false): void {
+export function renderFrame(ctx: CanvasRenderingContext2D, p: Project, time: number, settle = false): void {
+  // Clips are active on [start, end), so exactly at the end of the story nothing is "on" and the frame
+  // would be blank. Hold the last real frame instead (the exported video's final frame, and the end of preview).
+  const t = Math.min(time, Math.max(0, p.duration - 0.001));
   const scale = ctx.canvas.width / STAGE_W;
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   ctx.clearRect(0, 0, STAGE_W, STAGE_H);
@@ -136,11 +147,12 @@ export function renderFrame(ctx: CanvasRenderingContext2D, p: Project, t: number
 }
 
 function drawText(ctx: CanvasRenderingContext2D, o: SceneObject) {
+  const { lines, fit } = textLayout(ctx, o);
+  ctx.scale(fit, fit);
   ctx.font = textFont(o);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
-  const lines = (o.text ?? '').split('\n');
   const lh = TEXT_SIZE * 1.15;
   lines.forEach((line, i) => {
     const y = (i - (lines.length - 1) / 2) * lh;

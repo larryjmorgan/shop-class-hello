@@ -88,10 +88,11 @@ function MusicPanel() {
         if (!f) return;
         try {
           const key = uid('blob');
-          await putBlob(key, f);
+          const saved = await putBlob(key, f);
           const len = await decodeBlobDuration(f);
           const start = getTime();
           addAudio({ kind: 'music', start, duration: Math.min(len, Math.max(1, duration - start)), volume: 0.8, label: f.name.replace(/\.[^.]+$/, ''), blobKey: key, provider: 'file', bufferDuration: len });
+          if (!saved) alert('Added, but this browser could not save the audio for later. Use “Project → Save file…” before closing this page or it will be lost.');
         } catch { alert('Could not read that audio file.'); }
       }} />
       <button className="btn" onClick={() => fileRef.current?.click()}>📂 Import audio file…</button>

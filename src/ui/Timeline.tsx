@@ -81,6 +81,7 @@ export function Timeline({ tall, onToggleTall }: { tall: boolean; onToggleTall: 
 
   const contentW = project.duration * pps;
   const dur = project.duration;
+  const fitToWindow = () => setPps(clamp(((scroller.current?.clientWidth ?? 800) - LABEL_W - 40) / dur, 4, 120));
 
   const voiceLanes = useMemo(() => assignLanes(project.audio.filter((a) => a.kind === 'voice'), (a) => a.start, (a) => a.start + a.duration), [project.audio]);
   const musicLanes = useMemo(() => assignLanes(project.audio.filter((a) => a.kind === 'music'), (a) => a.start, (a) => a.start + a.duration), [project.audio]);
@@ -130,6 +131,7 @@ export function Timeline({ tall, onToggleTall }: { tall: boolean; onToggleTall: 
         <span className="muted">Drag bars to move · drag edges to trim · click the ruler to jump · ◆ = keyframes</span>
         <span className="spacer" />
         <button className="btn small" onClick={onToggleTall} aria-pressed={tall} title="Show more tracks at once">{tall ? '⇩ Shorter' : '⇧ Taller'}</button>
+        <button className="btn small" onClick={fitToWindow} title="Zoom so the whole story fits">Fit</button>
         <label className="zoom">
           Zoom
           <input type="range" min={4} max={120} value={pps} onChange={(e) => setPps(Number(e.target.value))} />
@@ -294,14 +296,4 @@ function Playhead({ scroller, pps }: { scroller: React.RefObject<HTMLDivElement>
       <span className="ph-flag">{t.toFixed(1)}s</span>
     </div>
   );
-}
-
-// Delete / Backspace removes the selected keyframe when one is selected (global handler in App covers other things).
-export function deleteSelectedKeyframe(): boolean {
-  const s = getState();
-  if (s.selection.type === 'object' && s.selectedKfT !== null) {
-    deleteKeyframe(s.selection.id, s.selectedKfT);
-    return true;
-  }
-  return false;
 }

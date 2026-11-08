@@ -67,7 +67,8 @@ Choices are 720p or 1080p at 30 fps.
 * Characters are single pieces with a flapping mouth and blinking; there is no limb rigging or frame-by-frame drawing.
 * Playback preview of computer voices uses the browser's speech engine, so timing can drift slightly from the bars; the length of a clip comes from the last time you pressed "Hear it" (or an estimate).
 * The ElevenLabs integration was tested against a mocked endpoint, **not** the live service, so the first real generation is worth a quick check.
-* Projects live in this browser's storage; use *Project → Save file…* for backups.
+* Projects live in this browser's storage; use *Project → Save file…* for backups. **Safari (iPad/iPhone) can erase a site's stored data after about a week of not using it**, so on an iPad always save a project file you care about.
+* The **microphone only works on a secure page**: `http://localhost` on the same computer, or https. If you open the dev server from an iPad by its network address (`http://192.168…`) recording is blocked by the browser; the app tells you so.
 * Sound is scheduled when you press Play, so changes you make to voices/music *while it is playing* are heard on the next play (pictures update immediately).
 * Audio recordings of deleted clips stay in browser storage until you clear site data (they're small, and Undo needs them).
 

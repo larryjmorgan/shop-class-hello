@@ -1,11 +1,10 @@
 import { useSyncExternalStore } from 'react';
 import {
-  MAX_DURATION, MIN_DURATION, STAGE_H, STAGE_W, clamp, emptyProject, findKeyframeIndex, fitToDuration, normalizeProject, samplePose, uid, upsertKeyframe,
+  MAX_DURATION, MIN_DURATION, STAGE_W, clamp, emptyProject, findKeyframeIndex, fitToDuration, normalizeProject, samplePose, uid, upsertKeyframe,
   type AudioClip, type BackgroundClip, type Keyframe, type Pose, type Project, type SceneObject,
 } from './model';
 import { artById, bgById } from './assets';
 import { SAMPLE_PROJECT } from './sample';
-import { deleteBlob } from './db';
 
 export type Selection =
   | { type: 'none' }
@@ -20,6 +19,8 @@ export interface AppState {
   autoKey: boolean;
   past: Project[];
   future: Project[];
+  /** true when the last autosave could not be written (storage full/blocked) */
+  saveFailed: boolean;
 }
 
 const STORAGE = 'storybox.project.v1';
@@ -42,17 +43,33 @@ let state: AppState = {
   autoKey: true,
   past: [],
   future: [],
+  saveFailed: false,
 };
 
 const subs = new Set<() => void>();
 const emit = () => subs.forEach((s) => s());
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
-function scheduleSave() {
+let dirty = false;
+
+function writeNow() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try { localStorage.setItem(STORAGE, JSON.stringify(state.project)); } catch { /* quota */ }
-  }, 400);
+  if (!dirty) return;
+  dirty = false;
+  let failed = false;
+  try { localStorage.setItem(STORAGE, JSON.stringify(state.project)); } catch { failed = true; }
+  if (failed !== state.saveFailed) setState({ saveFailed: failed });
+}
+
+function scheduleSave() {
+  dirty = true;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(writeNow, 400);
+}
+
+/** Write any pending autosave immediately (called when the page is hidden or closed). */
+export function flushSave() {
+  writeNow();
 }
 
 function setState(patch: Partial<AppState>) {
@@ -107,13 +124,13 @@ export function undo() {
   lastKey = undefined;
   const prev = state.past[state.past.length - 1];
   if (!prev) return;
-  setState({ project: prev, past: state.past.slice(0, -1), future: [state.project, ...state.future], selection: pruneSel(state.selection, prev) });
+  setState({ project: prev, past: state.past.slice(0, -1), future: [state.project, ...state.future], selection: pruneSel(state.selection, prev), selectedKfT: null });
 }
 export function redo() {
   lastKey = undefined;
   const next = state.future[0];
   if (!next) return;
-  setState({ project: next, past: [...state.past, state.project], future: state.future.slice(1), selection: pruneSel(state.selection, next) });
+  setState({ project: next, past: [...state.past, state.project], future: state.future.slice(1), selection: pruneSel(state.selection, next), selectedKfT: null });
 }
 
 function pruneSel(sel: Selection, p: Project): Selection {
@@ -243,8 +260,9 @@ export function addAudio(clip: Omit<AudioClip, 'id'>): string {
   const id = uid('aud');
   mutate((p) => {
     // Never silently cut a spoken line short: grow the story (up to 3:00) to fit it.
-    const end = clip.start + clip.duration;
-    if (clip.kind !== 'music' && end > p.duration) p.duration = clamp(Math.ceil(end), MIN_DURATION, MAX_DURATION);
+    // (Music just needs room for a couple of seconds; it is trimmed to the end like any loop.)
+    const end = clip.start + (clip.kind === 'music' ? Math.min(clip.duration, 2) : clip.duration);
+    if (end > p.duration) p.duration = clamp(Math.ceil(end), MIN_DURATION, MAX_DURATION);
     p.audio.push({ ...clip, id });
   });
   select({ type: 'audio', id });
@@ -280,10 +298,12 @@ export function posePatch(id: string, t: number, patch: Partial<Pose>, record = 
   mutate((p) => {
     const o = p.objects.find((x) => x.id === id);
     if (!o) return;
-    const cur = samplePose(o.keyframes, t);
+    // A keyframe outside the object's bar would make it appear mid-glide; snap edits to the nearest edge instead.
+    const tt = clamp(t, o.start, Math.max(o.start, o.end - 0.001));
+    const cur = samplePose(o.keyframes, tt);
     const next = { ...cur, ...patch };
     if (auto || o.keyframes.length === 0) {
-      o.keyframes = upsertKeyframe(o.keyframes, t, next);
+      o.keyframes = upsertKeyframe(o.keyframes, tt, next);
     } else {
       const dx = next.x - cur.x, dy = next.y - cur.y, ds = next.scale / (cur.scale || 1), dr = next.rot - cur.rot;
       o.keyframes = o.keyframes.map((k) => ({
@@ -312,12 +332,28 @@ export function setKeyframeEase(id: string, kfT: number, ease: Keyframe['ease'])
 }
 
 export function deleteKeyframe(id: string, kfT: number) {
-  updateObject(id, (o) => {
-    if (o.keyframes.length <= 1) return;
-    const i = findKeyframeIndex(o.keyframes, kfT);
-    if (i >= 0) o.keyframes.splice(i, 1);
-  });
+  const o = state.project.objects.find((x) => x.id === id);
+  // An object always keeps at least one keyframe; do nothing (and record no undo step) if there is nothing to delete.
+  if (o && o.keyframes.length > 1 && findKeyframeIndex(o.keyframes, kfT) >= 0) {
+    updateObject(id, (x) => { x.keyframes.splice(findKeyframeIndex(x.keyframes, kfT), 1); });
+  }
   setState({ selectedKfT: null });
+}
+
+/**
+ * Delete key handler: removes the selected keyframe if there really is one.
+ * Returns true if the key press was "used up" (so the object itself must not be deleted).
+ */
+export function deleteSelectedKeyframe(): boolean {
+  const { selection, selectedKfT, project } = state;
+  if (selection.type !== 'object' || selectedKfT === null) return false;
+  const o = project.objects.find((x) => x.id === selection.id);
+  if (!o || findKeyframeIndex(o.keyframes, selectedKfT) < 0) {
+    setState({ selectedKfT: null }); // stale selection: fall through to deleting the object
+    return false;
+  }
+  deleteKeyframe(o.id, selectedKfT);
+  return true;
 }
 
 export function moveObjectClip(id: string, dStart: number, dEnd: number, origin: SceneObject, record = false) {
@@ -389,13 +425,6 @@ export function deleteSelection() {
     if (sel.type === 'audio') p.audio = p.audio.filter((a) => a.id !== sel.id);
   });
   setState({ selection: { type: 'none' }, selectedKfT: null });
-  // Audio blobs are kept so undo can bring a clip back; purgeUnusedBlobs() cleans up on demand.
+  // Audio blobs are kept in browser storage so Undo can bring a clip back.
 }
 
-export async function purgeUnusedBlobs() {
-  const used = new Set(state.project.audio.map((a) => a.blobKey).filter(Boolean));
-  const all = [...state.past, ...state.future, state.project].flatMap((p) => p.audio.map((a) => a.blobKey).filter(Boolean) as string[]);
-  for (const k of new Set(all)) if (!used.has(k)) await deleteBlob(k);
-}
-
-export const STAGE = { w: STAGE_W, h: STAGE_H };
