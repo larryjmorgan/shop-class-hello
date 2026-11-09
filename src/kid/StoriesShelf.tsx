@@ -4,18 +4,33 @@ import { fmtTime, type Project } from '../model';
 import { download, safeName } from '../projectFile';
 import { ExportDialog } from '../ui/Dialogs';
 import { listMovies, loadMovie, removeMovie, type MovieMeta } from './movies';
+import { compileOwnStory, deleteOwnStory, listOwnStories, ownTitle } from './own';
 import { ParentGate } from './ParentGate';
 import { scenarioById } from './scenarios';
-import { compileStory, deleteKidStory, listKidStories, storyTitle, type KidStory } from './story';
+import { compileStory, deleteKidStory, listKidStories, storyTitle } from './story';
 import { StoryPlayer } from './StoryPlayer';
 
 /**
  * Her stories. Watching and changing them is for everyone; saving a video, opening in the Studio and deleting are
  * behind the grown-ups lock. Movies recorded by the earlier puppet version are listed too.
  */
-export function StoriesShelf({ onHome, onNew, onEdit, onOpenStudio }: { onHome: () => void; onNew: () => void; onEdit: (id: string) => void; onOpenStudio: (p: Project) => void }) {
+interface ShelfItem { kind: 'kid' | 'own'; id: string; title: string; emoji: string; bg?: string; thumb?: string; updatedAt: number; project: Project }
+
+/** Both kinds of story (📖 ready-made and 🎨 her own), newest first. */
+function shelfItems(): ShelfItem[] {
+  const kid: ShelfItem[] = listKidStories().map((s) => {
+    const sc = scenarioById(s.scenarioId)!;
+    return { kind: 'kid', id: s.id, title: storyTitle(s), emoji: sc.emoji, bg: sc.cardBg, thumb: s.thumb, updatedAt: s.updatedAt, project: compileStory(s) };
+  });
+  const own: ShelfItem[] = listOwnStories().map((s) => (
+    { kind: 'own', id: s.id, title: ownTitle(s), emoji: '🎨', bg: s.scenes[0]?.bg, thumb: s.thumb, updatedAt: s.updatedAt, project: compileOwnStory(s) }
+  ));
+  return [...kid, ...own].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+export function StoriesShelf({ onHome, onNew, onEdit, onEditOwn, onOpenStudio }: { onHome: () => void; onNew: () => void; onEdit: (id: string) => void; onEditOwn: (id: string) => void; onOpenStudio: (p: Project) => void }) {
   const [tick, setTick] = useState(0);
-  const stories = useMemo(() => listKidStories(), [tick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stories = useMemo(() => shelfItems(), [tick]); // eslint-disable-line react-hooks/exhaustive-deps
   const movies = useMemo(() => listMovies(), [tick]); // eslint-disable-line react-hooks/exhaustive-deps
   const [watching, setWatching] = useState<Project | null>(null);
   const [movie, setMovie] = useState<{ url: string } | null>(null);
@@ -26,9 +41,10 @@ export function StoriesShelf({ onHome, onNew, onEdit, onOpenStudio }: { onHome: 
 
   useEffect(() => () => { if (movie) URL.revokeObjectURL(movie.url); }, [movie]);
 
-  const del = (s: KidStory) => {
-    if (!window.confirm(`Delete “${storyTitle(s)}” for good? This can’t be undone.`)) return;
-    deleteKidStory(s.id);
+  const del = (s: ShelfItem) => {
+    if (!window.confirm(`Delete “${s.title}” for good? This can’t be undone.`)) return;
+    if (s.kind === 'own') deleteOwnStory(s.id);
+    else deleteKidStory(s.id);
     setTick((t) => t + 1);
   };
 
@@ -49,28 +65,27 @@ export function StoriesShelf({ onHome, onNew, onEdit, onOpenStudio }: { onHome: 
         ) : (
           <button className="kbtn round small" onClick={() => setGate(true)} aria-label="Grown-ups: video, Studio, delete">🔒</button>
         )}
-        <button className="kbtn round" onClick={onNew} aria-label="Make a new story">📖</button>
+        <button className="kbtn round" onClick={onNew} aria-label="Make a new story">➕</button>
       </div>
 
       {stories.length === 0 && movies.length === 0 ? (
         <div className="empty">
-          <button className="home-tile play" onClick={onNew} aria-label="Make your first story"><span className="home-icon huge-emoji">📖</span></button>
+          <button className="home-tile play" onClick={onNew} aria-label="Make your first story"><span className="home-icon huge-emoji">➕</span></button>
         </div>
       ) : (
         <div className="shelf-grid">
           {stories.map((s) => {
-            const sc = scenarioById(s.scenarioId)!;
-            const p = compileStory(s);
+            const p = s.project;
             return (
-              <div key={s.id} className="movie">
-                <button className="movie-pic" style={{ background: BACKGROUNDS.find((b) => b.id === sc.cardBg)?.thumb }} onClick={() => setWatching(p)} aria-label={`Watch ${storyTitle(s)}`}>
-                  {s.thumb ? <img src={s.thumb} alt="" draggable={false} /> : <span className="scenario-emoji">{sc.emoji}</span>}
+              <div key={`${s.kind}:${s.id}`} className="movie">
+                <button className="movie-pic" style={{ background: BACKGROUNDS.find((b) => b.id === s.bg)?.thumb }} onClick={() => setWatching(p)} aria-label={`Watch ${s.title}`}>
+                  {s.thumb ? <img src={s.thumb} alt="" draggable={false} /> : <span className="scenario-emoji">{s.emoji}</span>}
                   <span className="play-badge">▶</span>
-                  <span className="badge-emoji">{sc.emoji}</span>
+                  <span className="badge-emoji">{s.emoji}</span>
                   <span className="len">{fmtTime(p.duration).replace(/\.\d$/, '')}</span>
                 </button>
                 <div className="movie-tools">
-                  <button className="kbtn round small" onClick={() => onEdit(s.id)} aria-label={`Change ${storyTitle(s)}`}>✏️</button>
+                  <button className="kbtn round small" onClick={() => (s.kind === 'own' ? onEditOwn : onEdit)(s.id)} aria-label={`Change ${s.title}`}>✏️</button>
                   {parent && (
                     <>
                       <button className="btn small" onClick={() => setExporting(p)} aria-label="Save as a video file">🎬 Video</button>
