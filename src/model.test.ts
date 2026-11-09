@@ -159,3 +159,12 @@ describe('old saves that used the computer voice', () => {
     expect(draftLines(out).map((c) => c.id)).toEqual(['old']);
   });
 });
+
+describe('asleep ranges survive saving and are validated', () => {
+  it('keeps good [start,end] pairs and drops junk', () => {
+    const mk = (asleep: unknown) => normalizeProject({ version: 1, duration: 30, objects: [{ id: 'a', start: 0, end: 5, asleep, keyframes: [{ t: 0, x: 1, y: 2 }] }] })!.objects[0].asleep;
+    expect(mk([[1, 2], [3, 4]])).toEqual([[1, 2], [3, 4]]);
+    expect(mk([[2, 1], ['x', 3], [1]])).toBeUndefined();
+    expect(mk(undefined)).toBeUndefined();
+  });
+});

@@ -160,17 +160,7 @@ export function toProject(t: Theater, now: number): Project {
   };
 }
 
-// ---------- voice -> mouth ----------
-
-export function rms(samples: ArrayLike<number>): number {
-  let s = 0;
-  for (let i = 0; i < samples.length; i++) s += samples[i] * samples[i];
-  return samples.length ? Math.sqrt(s / samples.length) : 0;
-}
-
-const TALK_ON = 0.03;
-const TALK_OFF = 0.014;
-/** Talking starts at a clear voice level and stops at a lower one, so the mouth doesn't flicker on a breath. */
-export function isTalking(wasTalking: boolean, level: number): boolean {
-  return level >= (wasTalking ? TALK_OFF : TALK_ON);
+/** Puppets open their mouths while they react to a tap, so they look alive without any voice. */
+export function isReacting(a: Actor, now: number): boolean {
+  return !!a.reaction && now - a.reaction.t0 < REACTION_SECONDS[a.reaction.kind];
 }

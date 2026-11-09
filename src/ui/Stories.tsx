@@ -33,7 +33,7 @@ export function StoriesDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal title="My stories" onClose={onClose} wide>
+    <Modal title="Studio stories" onClose={onClose} wide>
       <p className="hint">Every story is saved in this browser automatically. Opening or starting another story never loses the one you were on.</p>
       <div className="stories">
         <button className="story-card new" onClick={() => switchTo(() => newStory())}>

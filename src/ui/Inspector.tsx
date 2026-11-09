@@ -1,7 +1,7 @@
 import { artById, bgById } from '../assets';
 import {
   addKeyframeAt, deleteKeyframe, deleteSelection, duplicateObject, moveLayer, mutate, posePatch, select, setAutoKey, setKeyframeEase,
-  openNarration, updateAudio, updateBackground, updateObject, useStore, useTime,
+  updateAudio, updateBackground, updateObject, useStore, useTime,
 } from '../store';
 import { activeAt, findKeyframeIndex, fmtTime, samplePose, type Behavior, type Ease, type Entrance } from '../model';
 
@@ -138,7 +138,7 @@ export function Inspector() {
       {c.kind === 'voice' && (
         <label className="field">Words
           <textarea rows={3} value={c.text ?? ''} onChange={(e) => updateAudio(c.id, (x) => { x.text = e.target.value; }, true, `atext:${c.id}`)} />
-          {c.provider !== 'draft' && <small>Editing the text doesn’t change recorded audio.</small>}
+          {c.provider !== 'draft' && <small>Editing the text doesn’t change the audio.</small>}
         </label>
       )}
       {c.kind === 'voice' && (
@@ -149,7 +149,7 @@ export function Inspector() {
           </select>
         </label>
       )}
-      {c.kind === 'voice' && <button className="btn small primary" onClick={() => openNarration([c.id])}>🎙 {c.provider === 'draft' ? 'Record my voice for this line' : 'Re-record this line'}</button>}
+      {c.kind === 'voice' && c.provider === 'draft' && <p className="hint">This line is silent. Give it a voice from the Voice tab (ElevenLabs), or keep it as a reminder of what happens here.</p>}
       <label className="field">Volume {Math.round(c.volume * 100)}%
         <input type="range" min={0} max={1.5} step={0.05} value={c.volume} onChange={(e) => updateAudio(c.id, (x) => { x.volume = Number(e.target.value); }, true, `vol:${c.id}`)} />
       </label>

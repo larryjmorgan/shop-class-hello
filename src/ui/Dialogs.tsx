@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { elevenVoices, findMissingAudio, getElevenKey, setElevenKey } from '../audio';
 import { countDraftLines, exportVideo, pickMime } from '../exporter';
-import { draftLines, fmtTime, type AudioClip } from '../model';
+import { fmtTime, type AudioClip, type Project } from '../model';
 import { safeName } from '../projectFile';
 import { pause } from '../transport';
-import { openNarration, useStore } from '../store';
+import { useStore } from '../store';
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   useEffect(() => {
@@ -52,8 +52,10 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function ExportDialog({ onClose }: { onClose: () => void }) {
-  const project = useStore((s) => s.project);
+/** Exports the Studio's open story, or any other story passed in (e.g. a kid's story from the shelf). */
+export function ExportDialog({ onClose, project: given }: { onClose: () => void; project?: Project }) {
+  const studioProject = useStore((s) => s.project);
+  const project = given ?? studioProject;
   const [height, setHeight] = useState<720 | 1080>(720);
   const [phase, setPhase] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
@@ -115,7 +117,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           </label>
           <ul className="notes">
             <li>Exporting runs in <b>real time</b>: about {Math.ceil(project.duration)} seconds. Keep this tab open and visible until it finishes.</li>
-            {silent > 0 && <li className="warn">⚠ {silent} voice clip{silent > 1 ? 's have' : ' has'} no voice yet, so {silent > 1 ? 'they' : 'it'} will be <b>silent</b> in the video. <button className="btn small primary" onClick={() => { openNarration(draftLines(project).map((c) => c.id)); onClose(); }}>🎙 Record my voice for {silent > 1 ? 'these lines' : 'this line'}</button></li>}
+            {silent > 0 && <li className="warn">⚠ {silent} voice clip{silent > 1 ? 's have' : ' has'} no voice yet, so {silent > 1 ? 'they' : 'it'} will be <b>silent</b> in the video.</li>}
             {missing.length > 0 && <li className="warn">⚠ {missing.length} clip{missing.length > 1 ? 's have' : ' has'} lost {missing.length > 1 ? 'their' : 'its'} audio on this device ({missing.slice(0, 3).map((m) => `“${m.label}”`).join(', ')}{missing.length > 3 ? '…' : ''}) and will be silent. Record or generate {missing.length > 1 ? 'them' : 'it'} again.</li>}
             {project.audio.length === 0 && <li>No sound added yet. The video will be silent.</li>}
             {mime && !/avc1/.test(mime) && <li>This browser saves <b>.webm</b> (or a non-H.264 file). YouTube and computers play it; for iPads/iPhones convert it to .mp4 with <code>scripts/to-mp4.sh</code> (see README). Chrome on desktop usually saves a ready-to-share .mp4.</li>}

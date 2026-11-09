@@ -108,7 +108,8 @@ export function Timeline({ tall, onToggleTall }: { tall: boolean; onToggleTall: 
   // ruler ticks
   const tickStep = pps >= 60 ? 1 : pps >= 30 ? 2 : pps >= 14 ? 5 : 10;
   const ticks: number[] = [];
-  for (let s = 0; s <= dur; s += tickStep) ticks.push(s);
+  // (no tick exactly at the end: its label would spill past the timeline and force a scrollbar; the total is shown on the left)
+  for (let s = 0; s < dur - 1e-6; s += tickStep) ticks.push(s);
 
   const audioRows = (kind: AudioClip['kind'], lanes: { lanes: Map<string, number>; count: number }, label: string, emoji: string) => {
     const clips = project.audio.filter((a) => a.kind === kind);
@@ -266,7 +267,7 @@ function AudioBar({ clip, pps, selected }: { clip: AudioClip; pps: number; selec
     <Bar
       pps={pps} className={`aud ${clip.kind}${clip.provider === 'draft' ? ' needs-voice' : ''}`} selected={selected}
       left={clip.start * pps} width={clip.duration * pps} label={`${emoji} ${label}`}
-      title={clip.provider === 'draft' ? 'No voice yet: this line is silent. Select it and press “Record my voice for this line”.' : label}
+      title={clip.provider === 'draft' ? 'A silent line: the mouth moves but nothing is heard. Give it a voice in the Voice tab (ElevenLabs), or keep it silent.' : label}
       noLeftResize={clip.kind !== 'music'}
       onBegin={() => { select({ type: 'audio', id: clip.id }); origin.current = { ...(getState().project.audio.find((x) => x.id === clip.id) ?? clip) }; }}
       onDrag={(dt, mode) => updateAudio(clip.id, (c) => {

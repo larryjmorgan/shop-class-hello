@@ -158,33 +158,25 @@ describe('music near the end', () => {
   });
 });
 
-describe('replaceVoiceAudio (re-recording a line with your own voice)', () => {
+describe('replaceVoiceAudio (giving a written line its generated voice)', () => {
   const setup = () => {
     loadProject({ ...emptyProject(), duration: 30 });
-    const id = addAudio({ kind: 'voice', start: 4, duration: 3, volume: 1, label: 'Bunny', text: 'Hello there', characterId: 'bunny-id', provider: 'draft' });
-    return id;
+    return addAudio({ kind: 'voice', start: 4, duration: 3, volume: 1, label: 'Bunny', text: 'Hello there', characterId: 'bunny-id', provider: 'draft' });
   };
 
-  it('keeps the words, speaker and start time, and swaps in the recording', () => {
+  it('keeps the words, speaker and start time, and swaps in the audio', () => {
     const id = setup();
-    replaceVoiceAudio(id, { blobKey: 'blob_1', bufferDuration: 2.4, rate: 1 });
+    replaceVoiceAudio(id, { blobKey: 'blob_1', bufferDuration: 2.4, provider: 'eleven', voiceId: 'v9' });
     const c = getState().project.audio.find((a) => a.id === id)!;
-    expect(c).toMatchObject({ provider: 'mic', blobKey: 'blob_1', text: 'Hello there', characterId: 'bunny-id', start: 4, bufferDuration: 2.4, rate: 1 });
+    expect(c).toMatchObject({ provider: 'eleven', voiceId: 'v9', blobKey: 'blob_1', text: 'Hello there', characterId: 'bunny-id', start: 4, bufferDuration: 2.4 });
     expect(c.duration).toBeCloseTo(2.4);
-    expect(c.voiceId).toBeUndefined();
   });
 
-  it('a squeaky take (rate 1.3) is shorter on the timeline than the raw recording', () => {
-    const id = setup();
-    replaceVoiceAudio(id, { blobKey: 'b', bufferDuration: 3.9, rate: 1.3 });
-    expect(getState().project.audio.find((a) => a.id === id)!.duration).toBeCloseTo(3);
-  });
-
-  it('grows the story if the new take runs past the end, and is one undo step', () => {
+  it('grows the story if the new audio runs past the end, and is one undo step', () => {
     loadProject({ ...emptyProject(), duration: 10 });
     const id = addAudio({ kind: 'voice', start: 8, duration: 1, volume: 1, label: 'v', provider: 'draft', text: 't' });
     const before = getState().past.length;
-    replaceVoiceAudio(id, { blobKey: 'b', bufferDuration: 5, rate: 1 });
+    replaceVoiceAudio(id, { blobKey: 'b', bufferDuration: 5, provider: 'eleven' });
     expect(getState().project.duration).toBe(13);
     expect(getState().past.length).toBe(before + 1);
     undo();
@@ -194,7 +186,7 @@ describe('replaceVoiceAudio (re-recording a line with your own voice)', () => {
   it('ignores ids that are not voice lines', () => {
     loadProject({ ...emptyProject(), duration: 30 });
     const id = addAudio({ kind: 'sfx', start: 1, duration: 1, volume: 1, label: 'pop', preset: 'pop' });
-    replaceVoiceAudio(id, { blobKey: 'b', bufferDuration: 2, rate: 1 });
+    replaceVoiceAudio(id, { blobKey: 'b', bufferDuration: 2, provider: 'eleven' });
     expect(getState().project.audio.find((a) => a.id === id)!.provider).toBeUndefined();
   });
 });

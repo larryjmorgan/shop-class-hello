@@ -11,8 +11,8 @@ import { STAGE_H, STAGE_W } from '../model';
 import { makeGate } from './gate';
 import { listMovies, loadMovie, removeMovie, saveMovie } from './movies';
 import {
-  MAX_ACTORS, REACTION_SECONDS, TRASH, addActor, hitActor, inTrash, isTap, isTalking, moveActor, newTheater, nextReaction, prune, react,
-  reactionOffset, removeActor, rms, toProject,
+  MAX_ACTORS, REACTION_SECONDS, TRASH, addActor, hitActor, inTrash, isReacting, isTap, moveActor, newTheater, nextReaction, prune, react,
+  reactionOffset, removeActor, toProject,
 } from './puppet';
 
 const bunny = { id: 'bunny', kind: 'character' as const, colors: ['#fff', '#fcc'] };
@@ -161,18 +161,13 @@ describe('drawing the theater', () => {
   });
 });
 
-describe('her voice moves the mouth', () => {
-  it('silence is zero and a loud sound is loud', () => {
-    expect(rms(new Float32Array(100))).toBe(0);
-    expect(rms(new Float32Array(100).fill(0.5))).toBeCloseTo(0.5);
-    expect(rms([])).toBe(0);
-  });
-
-  it('starts talking at a clear voice and does not flicker off on a quiet moment (hysteresis)', () => {
-    expect(isTalking(false, 0.02)).toBe(false); // a breath/room noise: not talking
-    expect(isTalking(false, 0.1)).toBe(true);
-    expect(isTalking(true, 0.02)).toBe(true); // brief dip while already talking: keep going
-    expect(isTalking(true, 0.005)).toBe(false);
+describe('puppets look alive without a voice', () => {
+  it('a puppet "talks" (mouth open) only while it reacts to a tap', () => {
+    const a = addActor(newTheater(), bunny, 0)!;
+    expect(isReacting(a, 1)).toBe(false);
+    react(a, 'hop', 1);
+    expect(isReacting(a, 1.3)).toBe(true);
+    expect(isReacting(a, 1 + REACTION_SECONDS.hop + 0.01)).toBe(false);
   });
 });
 
