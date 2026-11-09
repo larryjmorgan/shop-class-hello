@@ -95,7 +95,7 @@ Each activity has 3 levels that adjust by themselves: a round with no wrong taps
 
 Both kinds of story are on the shelf, newest first (🎨 marks her own). She taps one to watch it, or ✏️ to change it.
 
-**Grown-ups:** on the shelf, press 🔒 and answer the sum to **🎬 save a story as a video file** (to share it), **🛠 open it in the Studio** (a copy, to fine-tune with the full editor), or **🗑 delete** it. The 🔒 on the home screen opens the Studio (or add `#studio` to the end of the web address to go straight there). Puppet movies recorded with an earlier version still appear on the shelf.
+**Grown-ups:** on the shelf, press 🔒 and answer the sum to **🎬 save a story as a video file** (to share it), **🛠 open it in the Studio** (a copy, to fine-tune with the full editor), or **🗑 delete** it. **💾 Back up everything** and **📂 Restore a backup** are there too (see [Backing up](#backing-up-icloud-drive-another-computer)). The 🔒 on the home screen opens the Studio (or add `#studio` to the end of the web address to go straight there). Puppet movies recorded with an earlier version still appear on the shelf.
 
 ### 🎭 Puppet play
 
