@@ -4,7 +4,7 @@ import { resumeAutoBackup, savedAt, turnOffAutoBackup, turnOnAutoBackup, useAuto
 export function AutoBackupControl({ compact = false }: { compact?: boolean }) {
   const s = useAutoBackup();
   if (s.state === 'unsupported') {
-    return compact ? null : <span className="auto-backup muted" role="note">Automatic backup needs Chrome or Edge on a computer. Use 💾 Back up everything instead.</span>;
+    return compact ? null : <span className="auto-backup muted" role="note">Automatic backup needs <a href="https://www.google.com/chrome/" target="_blank" rel="noopener noreferrer">Google Chrome</a> or Microsoft Edge on a computer. Until then, use 💾 Back up everything.</span>;
   }
   if (s.state === 'off') {
     return (

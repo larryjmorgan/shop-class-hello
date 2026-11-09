@@ -113,6 +113,8 @@ Puppet movies recorded with an earlier version are videos and are not in the bac
 
 ### Automatic backup (Chrome or Edge on a computer)
 
+Get Chrome at [google.com/chrome](https://www.google.com/chrome/). Microsoft Edge comes with Windows.
+
 Set it up once and the backup file keeps itself up to date:
 
 1. On the shelf's grown-up tools (or in the Studio under **Project**), press **🔄 Turn on automatic backup…**.
