@@ -143,7 +143,7 @@ export function NarrationDialog({ clipIds, onClose }: { clipIds: string[]; onClo
         ))}
       </div>
       <p className="muted">
-        <b>{clip.label}</b> says this at {fmtTime(clip.start)}{clip.provider === 'browser' ? ' (currently a computer voice)' : ' (replacing the current recording)'}:
+        <b>{clip.label}</b> says this at {fmtTime(clip.start)}{clip.provider === 'draft' ? ' (no voice yet)' : ' (replacing the current recording)'}:
       </p>
       <blockquote className="script">{clip.text?.trim() || '(No words were saved for this line. Just say it your way!)'}</blockquote>
 

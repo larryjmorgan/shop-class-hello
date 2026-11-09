@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { elevenVoices, findMissingAudio, getElevenKey, setElevenKey } from '../audio';
-import { countBrowserVoices, exportVideo, pickMime } from '../exporter';
+import { countDraftLines, exportVideo, pickMime } from '../exporter';
 import { draftLines, fmtTime, type AudioClip } from '../model';
 import { safeName } from '../projectFile';
 import { pause } from '../transport';
@@ -66,7 +66,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const [missing, setMissing] = useState<AudioClip[]>([]);
   const abort = useRef<AbortController | null>(null);
   const mime = pickMime();
-  const silent = countBrowserVoices(project);
+  const silent = countDraftLines(project);
 
   useEffect(() => { void findMissingAudio(project).then(setMissing); }, [project]);
 
@@ -84,7 +84,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       const r = await exportVideo(project, { height, fps: 30, signal: abort.current.signal, onProgress: (f, l) => { setProgress(f); setLabel(l); } });
       setUrl(URL.createObjectURL(r.blob));
       setExt(r.ext);
-      setSkipped(r.skippedBrowserVoices);
+      setSkipped(r.draftLinesWithoutVoice);
       setHiddenTab(r.tabWasHidden);
       setPhase('done');
     } catch (e) {
@@ -115,7 +115,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           </label>
           <ul className="notes">
             <li>Exporting runs in <b>real time</b>: about {Math.ceil(project.duration)} seconds. Keep this tab open and visible until it finishes.</li>
-            {silent > 0 && <li className="warn">⚠ {silent} voice clip{silent > 1 ? 's use' : ' uses'} a computer voice, which browsers can’t record. {silent > 1 ? 'They' : 'It'} will be <b>silent</b> in the video. Re-do {silent > 1 ? 'them' : 'it'} with ElevenLabs or the microphone. <button className="btn small primary" onClick={() => { openNarration(draftLines(project).map((c) => c.id)); onClose(); }}>🎙 Record my voice for {silent > 1 ? 'these lines' : 'this line'}</button></li>}
+            {silent > 0 && <li className="warn">⚠ {silent} voice clip{silent > 1 ? 's have' : ' has'} no voice yet, so {silent > 1 ? 'they' : 'it'} will be <b>silent</b> in the video. <button className="btn small primary" onClick={() => { openNarration(draftLines(project).map((c) => c.id)); onClose(); }}>🎙 Record my voice for {silent > 1 ? 'these lines' : 'this line'}</button></li>}
             {missing.length > 0 && <li className="warn">⚠ {missing.length} clip{missing.length > 1 ? 's have' : ' has'} lost {missing.length > 1 ? 'their' : 'its'} audio on this device ({missing.slice(0, 3).map((m) => `“${m.label}”`).join(', ')}{missing.length > 3 ? '…' : ''}) and will be silent. Record or generate {missing.length > 1 ? 'them' : 'it'} again.</li>}
             {project.audio.length === 0 && <li>No sound added yet. The video will be silent.</li>}
             {mime && !/avc1/.test(mime) && <li>This browser saves <b>.webm</b> (or a non-H.264 file). YouTube and computers play it; for iPads/iPhones convert it to .mp4 with <code>scripts/to-mp4.sh</code> (see README). Chrome on desktop usually saves a ready-to-share .mp4.</li>}
@@ -134,7 +134,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
         <>
           <video src={url} controls className="preview-video" />
           {hiddenTab && <p className="hint warn">⚠ This tab was in the background while recording, so parts of the picture may be frozen. Watch the preview; if it looks wrong, export again and keep this tab visible.</p>}
-          {skipped > 0 && <p className="hint warn">{skipped} computer-voice clip{skipped > 1 ? 's are' : ' is'} silent in this file.</p>}
+          {skipped > 0 && <p className="hint warn">{skipped} line{skipped > 1 ? 's have' : ' has'} no voice and {skipped > 1 ? 'are' : 'is'} silent in this file.</p>}
           <div className="row-btns">
             <a className="btn primary" href={url} download={`${safeName(project.title)}.${ext}`}>⬇ Download .{ext}</a>
             <button className="btn" onClick={() => { URL.revokeObjectURL(url); setUrl(''); setPhase('idle'); }}>Make another</button>

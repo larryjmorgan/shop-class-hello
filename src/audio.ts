@@ -306,32 +306,6 @@ export function musicLoopSeconds(presetId: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// Browser speech (preview only: browsers can't capture it into a video file)
-// ---------------------------------------------------------------------------
-
-export function browserVoices(): SpeechSynthesisVoice[] {
-  return typeof speechSynthesis === 'undefined' ? [] : speechSynthesis.getVoices();
-}
-
-export function speakBrowser(c: Pick<AudioClip, 'text' | 'voiceId' | 'rate' | 'pitch' | 'volume'>, onEnd?: (seconds: number) => void): void {
-  if (typeof speechSynthesis === 'undefined' || !c.text) return;
-  const u = new SpeechSynthesisUtterance(c.text);
-  const v = browserVoices().find((x) => x.voiceURI === c.voiceId);
-  if (v) u.voice = v;
-  u.rate = c.rate ?? 1;
-  u.pitch = c.pitch ?? 1;
-  u.volume = Math.min(1, c.volume ?? 1);
-  let t0 = 0;
-  u.onstart = () => (t0 = performance.now());
-  u.onend = () => onEnd?.((performance.now() - t0) / 1000);
-  speechSynthesis.speak(u);
-}
-
-export function stopBrowserSpeech() {
-  if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
-}
-
-// ---------------------------------------------------------------------------
 // ElevenLabs (optional, needs the user's own API key)
 // ---------------------------------------------------------------------------
 
@@ -470,17 +444,16 @@ export function curveAt(pts: [number, number][], t: number): number {
 /**
  * Schedule every clip in the project starting from `fromT`.
  * All buffers must already be loaded (call preloadAudio first).
- * `speakers` = true plays browser-TTS clips through the speech engine (preview only).
+ * Draft lines (written, no voice recorded yet) are silent.
  */
-export async function startPlayback(p: Project, fromT: number, dest: AudioNode, opts: { speakers: boolean }): Promise<PlayHandle> {
+export async function startPlayback(p: Project, fromT: number, dest: AudioNode): Promise<PlayHandle> {
   const ac = getAudioContext();
   const base = ac.currentTime + 0.06;
   const nodes: AudioScheduledSourceNode[] = [];
-  const timers: number[] = [];
 
-  // Computer-voice clips are only audible in preview, so they only duck the music there.
+  // Draft lines make no sound, so they must not duck the music.
   const voiceIv: [number, number][] = p.audio
-    .filter((c) => c.kind === 'voice' && (opts.speakers || c.provider !== 'browser'))
+    .filter((c) => c.kind === 'voice' && c.provider !== 'draft')
     .map((c) => [c.start, c.start + c.duration]);
   const duck = p.duckMusic ? duckCurve(voiceIv) : [];
 
@@ -488,12 +461,7 @@ export async function startPlayback(p: Project, fromT: number, dest: AudioNode, 
     const clipEnd = clip.start + clip.duration;
     if (clipEnd <= fromT) continue;
 
-    if (clip.provider === 'browser') {
-      if (opts.speakers && clip.start >= fromT - 0.01) {
-        timers.push(window.setTimeout(() => speakBrowser(clip), Math.max(0, (clip.start - fromT) * 1000)));
-      }
-      continue;
-    }
+    if (clip.provider === 'draft') continue;
 
     const buf = await loadBuffer(clip);
     if (!buf) continue;
@@ -541,12 +509,10 @@ export async function startPlayback(p: Project, fromT: number, dest: AudioNode, 
   return {
     wallStart: performance.now() + (base - ac.currentTime) * 1000,
     stop: () => {
-      timers.forEach((t) => clearTimeout(t));
       nodes.forEach((n) => {
         try { n.stop(); } catch { /* already stopped */ }
         n.disconnect();
       });
-      if (opts.speakers) stopBrowserSpeech();
     },
   };
 }
