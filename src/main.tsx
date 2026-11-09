@@ -2,9 +2,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { requestPersistentStorage } from './db';
 import { flushSave } from './store';
-import { App } from './ui/App';
 import { ErrorBoundary } from './ui/ErrorBoundary';
+import { Root } from './ui/Root';
 import './ui/styles.css';
+import './kid/kid.css';
 
 // Don't lose the last half-second of edits if the tab is closed or the tablet is put to sleep.
 window.addEventListener('pagehide', flushSave);
@@ -21,7 +22,7 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator && location.protocol.st
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <Root />
     </ErrorBoundary>
   </StrictMode>,
 );

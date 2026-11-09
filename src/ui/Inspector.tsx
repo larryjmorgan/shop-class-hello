@@ -134,11 +134,11 @@ export function Inspector() {
   return (
     <aside className="inspector">
       <h3>{c.kind === 'voice' ? '🎤' : c.kind === 'music' ? '🎵' : '🔊'} {c.label}</h3>
-      <p className="muted">{fmtTime(c.start)} → {fmtTime(c.start + c.duration)} {c.provider === 'browser' && '· computer voice (preview only)'}</p>
+      <p className="muted">{fmtTime(c.start)} → {fmtTime(c.start + c.duration)} {c.provider === 'draft' && '· no voice yet (silent)'}</p>
       {c.kind === 'voice' && (
         <label className="field">Words
           <textarea rows={3} value={c.text ?? ''} onChange={(e) => updateAudio(c.id, (x) => { x.text = e.target.value; }, true, `atext:${c.id}`)} />
-          {c.provider !== 'browser' && <small>Editing the text doesn’t change recorded audio.</small>}
+          {c.provider !== 'draft' && <small>Editing the text doesn’t change recorded audio.</small>}
         </label>
       )}
       {c.kind === 'voice' && (
@@ -149,7 +149,7 @@ export function Inspector() {
           </select>
         </label>
       )}
-      {c.kind === 'voice' && <button className="btn small primary" onClick={() => openNarration([c.id])}>🎙 {c.provider === 'browser' ? 'Record my voice for this line' : 'Re-record this line'}</button>}
+      {c.kind === 'voice' && <button className="btn small primary" onClick={() => openNarration([c.id])}>🎙 {c.provider === 'draft' ? 'Record my voice for this line' : 'Re-record this line'}</button>}
       <label className="field">Volume {Math.round(c.volume * 100)}%
         <input type="range" min={0} max={1.5} step={0.05} value={c.volume} onChange={(e) => updateAudio(c.id, (x) => { x.volume = Number(e.target.value); }, true, `vol:${c.id}`)} />
       </label>

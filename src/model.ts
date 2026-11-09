@@ -44,7 +44,8 @@ export interface BackgroundClip {
 }
 
 export type AudioKind = 'voice' | 'music' | 'sfx';
-export type VoiceProvider = 'browser' | 'eleven' | 'mic' | 'file';
+/** draft = a line that is written but has no voice yet (silent); mic = a real recording; eleven = ElevenLabs; file = imported audio */
+export type VoiceProvider = 'draft' | 'eleven' | 'mic' | 'file';
 
 export interface AudioClip {
   id: string;
@@ -57,8 +58,7 @@ export interface AudioClip {
   characterId?: string; // which object "speaks" (mouth flaps)
   provider?: VoiceProvider;
   voiceId?: string;
-  rate?: number; // browser TTS speed, or playback rate for recordings
-  pitch?: number; // browser TTS pitch
+  rate?: number; // playback rate for recordings (the squeaky / deep effect)
   blobKey?: string; // stored audio (eleven / mic / file)
   bufferDuration?: number; // natural length of stored audio at rate 1
   preset?: string; // procedural music / sfx id
@@ -210,9 +210,9 @@ export function emptyProject(title = 'My Story'): Project {
   return { version: 1, title, duration: 30, duckMusic: true, objects: [], backgrounds: [], audio: [] };
 }
 
-/** Voice lines that still use a computer voice (they play in the editor but are silent in a video), in story order. */
+/** Voice lines that are written but have no voice yet (silent in the video), in story order. */
 export function draftLines(p: Project): AudioClip[] {
-  return p.audio.filter((c) => c.kind === 'voice' && c.provider === 'browser').sort((a, b) => a.start - b.start);
+  return p.audio.filter((c) => c.kind === 'voice' && c.provider === 'draft').sort((a, b) => a.start - b.start);
 }
 
 /** Voice lines that overlap another voice line (two people talking over each other). */
@@ -292,6 +292,14 @@ const OBJECT_DEFAULTS: Partial<SceneObject> = { behavior: 'none', entrance: 'pop
 const HEX = /^#[0-9a-f]{6}$/i;
 const AUDIO_DEFAULTS: Partial<AudioClip> = { volume: 1 };
 
+/** Older saves used the browser's computer voice ('browser'). That voice is gone: those lines become silent drafts. */
+function migrateClip(c: AudioClip & { pitch?: number }): AudioClip {
+  const { pitch: _pitch, ...rest } = c;
+  void _pitch;
+  if ((rest.provider as string) === 'browser') return { ...rest, provider: 'draft', voiceId: undefined, rate: undefined };
+  return rest;
+}
+
 /** Validate + repair a project loaded from storage or a file. Returns null if it isn't a StoryBox project. */
 export function normalizeProject(raw: unknown): Project | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -310,6 +318,6 @@ export function normalizeProject(raw: unknown): Project | null {
     duckMusic: r.duckMusic !== false,
     objects: objects.map((o) => ({ ...OBJECT_DEFAULTS, ...o, color: HEX.test(String(o.color)) ? o.color : '#ffffff', name: typeof o.name === 'string' ? o.name : o.id, keyframes: [...o.keyframes].sort((a, b) => a.t - b.t) })),
     backgrounds,
-    audio: audio.map((a) => ({ ...AUDIO_DEFAULTS, ...a, label: typeof a.label === 'string' ? a.label : a.kind })),
+    audio: audio.map((a) => migrateClip({ ...AUDIO_DEFAULTS, ...a, label: typeof a.label === 'string' ? a.label : a.kind })),
   });
 }

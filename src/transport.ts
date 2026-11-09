@@ -15,7 +15,7 @@ export async function play(): Promise<void> {
   await Promise.all([preloadAudio(project), preloadProject(project)]);
   if (my !== token) return;
   const from = getTime();
-  handle = await startPlayback(project, from, getAudioContext().destination, { speakers: true });
+  handle = await startPlayback(project, from, getAudioContext().destination);
   if (my !== token) {
     handle.stop();
     handle = null;

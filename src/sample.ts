@@ -42,8 +42,8 @@ export const SAMPLE_PROJECT: Project = {
     { id: 'm1', kind: 'music', start: 0, duration: 30, volume: 0.8, label: 'Sunny Day', preset: 'sunny' },
     { id: 's1', kind: 'sfx', start: 1.1, duration: 0.8, volume: 0.8, label: 'Whoosh', preset: 'whoosh' },
     { id: 's2', kind: 'sfx', start: 18.1, duration: 1.8, volume: 0.9, label: 'Ta-da!', preset: 'tada' },
-    { id: 'v1', kind: 'voice', start: 4.6, duration: 3.6, volume: 1, label: 'Bunny', characterId: 'bunny', provider: 'browser', rate: 1, pitch: 1.5, text: "Hi! I'm Bunny. Today is a very special day!" },
-    { id: 'v2', kind: 'voice', start: 10.6, duration: 3.2, volume: 1, label: 'Bear', characterId: 'bear', provider: 'browser', rate: 0.95, pitch: 0.7, text: 'Hello Bunny! Are you ready for the party?' },
-    { id: 'v3', kind: 'voice', start: 14.2, duration: 2.0, volume: 1, label: 'Bunny', characterId: 'bunny', provider: 'browser', rate: 1.05, pitch: 1.5, text: "Yes! Let's go!" },
+    { id: 'v1', kind: 'voice', start: 4.6, duration: 3.6, volume: 1, label: 'Bunny', characterId: 'bunny', provider: 'draft', text: "Hi! I'm Bunny. Today is a very special day!" },
+    { id: 'v2', kind: 'voice', start: 10.6, duration: 3.2, volume: 1, label: 'Bear', characterId: 'bear', provider: 'draft', text: 'Hello Bunny! Are you ready for the party?' },
+    { id: 'v3', kind: 'voice', start: 14.2, duration: 2.0, volume: 1, label: 'Bunny', characterId: 'bunny', provider: 'draft', text: "Yes! Let's go!" },
   ],
 };

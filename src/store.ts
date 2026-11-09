@@ -365,7 +365,6 @@ export function replaceVoiceAudio(id: string, take: { blobKey: string; bufferDur
     c.rate = take.rate;
     c.duration = take.bufferDuration / take.rate;
     c.voiceId = undefined;
-    c.pitch = undefined;
     const end = c.start + c.duration;
     if (end > p.duration) p.duration = clamp(Math.ceil(end), MIN_DURATION, MAX_DURATION);
   });

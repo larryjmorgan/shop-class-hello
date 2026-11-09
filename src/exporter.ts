@@ -14,7 +14,7 @@ export interface ExportResult {
   blob: Blob;
   mime: string;
   ext: 'mp4' | 'webm';
-  skippedBrowserVoices: number;
+  draftLinesWithoutVoice: number;
   /** The tab was in the background at some point, so part of the picture may have frozen. */
   tabWasHidden: boolean;
 }
@@ -35,8 +35,8 @@ export function pickMime(): string | null {
   return CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) ?? null;
 }
 
-export function countBrowserVoices(p: Project): number {
-  return p.audio.filter((a) => a.kind === 'voice' && a.provider === 'browser').length;
+export function countDraftLines(p: Project): number {
+  return p.audio.filter((a) => a.kind === 'voice' && a.provider === 'draft').length;
 }
 
 /**
@@ -89,7 +89,7 @@ export async function exportVideo(project: Project, opts: ExportOptions): Promis
   rec.start(1000);
   let handle;
   try {
-    handle = await startPlayback(project, 0, audioDest, { speakers: false });
+    handle = await startPlayback(project, 0, audioDest);
   } catch (err) {
     cleanup();
     rec.stop();
@@ -127,5 +127,5 @@ export async function exportVideo(project: Project, opts: ExportOptions): Promis
   const actual = rec.mimeType || mime;
   const isMp4 = actual.startsWith('video/mp4');
   const type = isMp4 ? 'video/mp4' : 'video/webm';
-  return { blob: new Blob(chunks, { type }), mime: actual, ext: isMp4 ? 'mp4' : 'webm', skippedBrowserVoices: countBrowserVoices(project), tabWasHidden };
+  return { blob: new Blob(chunks, { type }), mime: actual, ext: isMp4 ? 'mp4' : 'webm', draftLinesWithoutVoice: countDraftLines(project), tabWasHidden };
 }

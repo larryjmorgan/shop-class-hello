@@ -59,7 +59,7 @@ function Transport() {
   );
 }
 
-export function App() {
+export function App({ onKidMode }: { onKidMode?: () => void } = {}) {
   const project = useStore((s) => s.project);
   const canUndo = useStore((s) => s.past.length > 0);
   const canRedo = useStore((s) => s.future.length > 0);
@@ -109,6 +109,7 @@ export function App() {
     <div className={`app${tall ? ' tall' : ''}${saveFailed ? ' has-banner' : ''}`}>
       <header className="topbar">
         <div className="brand">🎬 <span>StoryBox</span></div>
+        {onKidMode && <button className="btn" onClick={onKidMode} title="Back to the kids' puppet screen">🧒 Kids' mode</button>}
         <input className="title" value={project.title} onChange={(e) => setTitle(e.target.value)} aria-label="Story title" />
         <label className="dur" title={`Stories can be ${MIN_DURATION}s to ${MAX_DURATION / 60} minutes`}>
           Length

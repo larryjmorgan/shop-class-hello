@@ -161,7 +161,7 @@ describe('music near the end', () => {
 describe('replaceVoiceAudio (re-recording a line with your own voice)', () => {
   const setup = () => {
     loadProject({ ...emptyProject(), duration: 30 });
-    const id = addAudio({ kind: 'voice', start: 4, duration: 3, volume: 1, label: 'Bunny', text: 'Hello there', characterId: 'bunny-id', provider: 'browser', voiceId: 'x', rate: 1.2, pitch: 1.5 });
+    const id = addAudio({ kind: 'voice', start: 4, duration: 3, volume: 1, label: 'Bunny', text: 'Hello there', characterId: 'bunny-id', provider: 'draft' });
     return id;
   };
 
@@ -172,7 +172,6 @@ describe('replaceVoiceAudio (re-recording a line with your own voice)', () => {
     expect(c).toMatchObject({ provider: 'mic', blobKey: 'blob_1', text: 'Hello there', characterId: 'bunny-id', start: 4, bufferDuration: 2.4, rate: 1 });
     expect(c.duration).toBeCloseTo(2.4);
     expect(c.voiceId).toBeUndefined();
-    expect(c.pitch).toBeUndefined();
   });
 
   it('a squeaky take (rate 1.3) is shorter on the timeline than the raw recording', () => {
@@ -183,13 +182,13 @@ describe('replaceVoiceAudio (re-recording a line with your own voice)', () => {
 
   it('grows the story if the new take runs past the end, and is one undo step', () => {
     loadProject({ ...emptyProject(), duration: 10 });
-    const id = addAudio({ kind: 'voice', start: 8, duration: 1, volume: 1, label: 'v', provider: 'browser', text: 't' });
+    const id = addAudio({ kind: 'voice', start: 8, duration: 1, volume: 1, label: 'v', provider: 'draft', text: 't' });
     const before = getState().past.length;
     replaceVoiceAudio(id, { blobKey: 'b', bufferDuration: 5, rate: 1 });
     expect(getState().project.duration).toBe(13);
     expect(getState().past.length).toBe(before + 1);
     undo();
-    expect(getState().project.audio[0].provider).toBe('browser');
+    expect(getState().project.audio[0].provider).toBe('draft');
   });
 
   it('ignores ids that are not voice lines', () => {

@@ -264,9 +264,9 @@ function AudioBar({ clip, pps, selected }: { clip: AudioClip; pps: number; selec
   const label = clip.kind === 'voice' ? `${clip.label}: ${clip.text ?? ''}` : clip.label;
   return (
     <Bar
-      pps={pps} className={`aud ${clip.kind}${clip.provider === 'browser' ? ' preview-only' : ''}`} selected={selected}
+      pps={pps} className={`aud ${clip.kind}${clip.provider === 'draft' ? ' needs-voice' : ''}`} selected={selected}
       left={clip.start * pps} width={clip.duration * pps} label={`${emoji} ${label}`}
-      title={clip.provider === 'browser' ? 'Browser voice: you will hear it in preview, but it is not included in the exported video' : label}
+      title={clip.provider === 'draft' ? 'No voice yet: this line is silent. Select it and press “Record my voice for this line”.' : label}
       noLeftResize={clip.kind !== 'music'}
       onBegin={() => { select({ type: 'audio', id: clip.id }); origin.current = { ...(getState().project.audio.find((x) => x.id === clip.id) ?? clip) }; }}
       onDrag={(dt, mode) => updateAudio(clip.id, (c) => {

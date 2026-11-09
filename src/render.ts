@@ -114,7 +114,12 @@ export function measureObject(o: SceneObject): { w: number; h: number } {
   return { w: OBJ_BASE, h: OBJ_BASE };
 }
 
-export function renderFrame(ctx: CanvasRenderingContext2D, p: Project, time: number, settle = false): void {
+export interface RenderOptions {
+  /** Live puppets: decide mouth-open from the microphone instead of from scheduled voice clips. */
+  mouthOpen?: (o: SceneObject) => boolean;
+}
+
+export function renderFrame(ctx: CanvasRenderingContext2D, p: Project, time: number, settle = false, opts?: RenderOptions): void {
   // Clips are active on [start, end), so exactly at the end of the story nothing is "on" and the frame
   // would be blank. Hold the last real frame instead (the exported video's final frame, and the end of preview).
   const t = Math.min(time, Math.max(0, p.duration - 0.001));
@@ -135,7 +140,7 @@ export function renderFrame(ctx: CanvasRenderingContext2D, p: Project, time: num
     if (o.kind === 'text') {
       drawText(ctx, o);
     } else {
-      const talking = o.kind === 'character' && !!speakingClip(p, o.id, t) && mouthOpenAt(t);
+      const talking = o.kind === 'character' && (opts?.mouthOpen ? opts.mouthOpen(o) : !!speakingClip(p, o.id, t) && mouthOpenAt(t));
       const blink = o.kind === 'character' && blinkAt(t, hashSeed(o.id));
       const img = requestImage(o.assetId, o.color, talking, blink) ?? requestImage(o.assetId, o.color, false, false);
       if (img) {
