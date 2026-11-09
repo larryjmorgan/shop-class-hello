@@ -2,13 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { MAX_DURATION, MIN_DURATION, clamp, countDropped, fmtTime } from '../model';
 import { download, projectFromFile, projectToFile, safeName } from '../projectFile';
 import {
-  closeNarration, deleteSelection, deleteSelectedKeyframe, getState, getTime, newSampleStory, newStory, redo, setDuration, setTime, setTitle, undo, useStore, usePlaying, useTime,
+  deleteSelection, deleteSelectedKeyframe, getState, getTime, newSampleStory, newStory, redo, setDuration, setTime, setTitle, undo, useStore, usePlaying, useTime,
 } from '../store';
 import { pause, seek, toggle } from '../transport';
 import { ExportDialog, Modal, SettingsDialog } from './Dialogs';
 import { Inspector } from './Inspector';
 import { Library } from './Library';
-import { NarrationDialog } from './Narration';
 import { Stage } from './Stage';
 import { StoriesDialog } from './Stories';
 import { Timeline } from './Timeline';
@@ -64,7 +63,6 @@ export function App({ onKidMode }: { onKidMode?: () => void } = {}) {
   const canUndo = useStore((s) => s.past.length > 0);
   const canRedo = useStore((s) => s.future.length > 0);
   const saveFailed = useStore((s) => s.saveFailed);
-  const narration = useStore((s) => s.narration);
   const [dialog, setDialog] = useState<'none' | 'export' | 'settings' | 'help' | 'stories'>('none');
   const [tall, setTall] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -117,13 +115,13 @@ export function App({ onKidMode }: { onKidMode?: () => void } = {}) {
           <small>max 3:00</small>
         </label>
         <span className="spacer" />
-        <button className="btn" onClick={() => setDialog('stories')} title="All your stories">📚 My stories</button>
+        <button className="btn" onClick={() => setDialog('stories')} title="All your Studio stories">📂 Studio stories</button>
         <button className="btn" onClick={undo} disabled={!canUndo} title="Ctrl/⌘+Z">↶ Undo</button>
         <button className="btn" onClick={redo} disabled={!canRedo} title="Ctrl/⌘+Shift+Z">↷ Redo</button>
         <details className="menu">
           <summary className="btn">📁 Project ▾</summary>
           <div className="menu-pop" onClick={(e) => ((e.currentTarget.parentElement as HTMLDetailsElement).open = false)}>
-            <button onClick={() => setDialog('stories')}>📚 My stories…</button>
+            <button onClick={() => setDialog('stories')}>📂 Studio stories…</button>
             <button onClick={() => { pause(); setTime(0); newStory(); }}>✨ New story</button>
             <button onClick={() => { pause(); setTime(0); newSampleStory(); }}>🐰 New story from the sample</button>
             <button onClick={async () => {
@@ -161,7 +159,6 @@ export function App({ onKidMode }: { onKidMode?: () => void } = {}) {
       {dialog === 'export' && <ExportDialog onClose={() => setDialog('none')} />}
       {dialog === 'settings' && <SettingsDialog onClose={() => setDialog('none')} />}
       {dialog === 'stories' && <StoriesDialog onClose={() => setDialog('none')} />}
-      {narration && <NarrationDialog clipIds={narration} onClose={closeNarration} />}
       {dialog === 'help' && (
         <SettingsHelp onClose={() => setDialog('none')} />
       )}

@@ -29,8 +29,6 @@ export interface AppState {
   future: Project[];
   /** true when the last autosave could not be written (storage full/blocked) */
   saveFailed: boolean;
-  /** ids of the voice lines the "Record your lines" helper is walking through (null = closed) */
-  narration: string[] | null;
 }
 
 /** Open the last story, or the newest readable one, or start with the sample. */
@@ -61,7 +59,6 @@ let state: AppState = {
   past: [],
   future: [],
   saveFailed: false,
-  narration: null,
 };
 
 const subs = new Set<() => void>();
@@ -190,7 +187,7 @@ export function loadProject(p: Project) {
 function activate(id: string, project: Project) {
   lastKey = undefined;
   setCurrentStoryId(id);
-  setState({ currentId: id, project, past: [], future: [], selection: { type: 'none' }, selectedKfT: null, narration: null }, false);
+  setState({ currentId: id, project, past: [], future: [], selection: { type: 'none' }, selectedKfT: null }, false);
   if (!listStories().find((m) => m.id === id)?.thumb) scheduleThumb();
 }
 
@@ -348,23 +345,21 @@ export function addBackground(bgId: string, at: number) {
   select({ type: 'bg', id });
 }
 
-export const openNarration = (ids: string[]) => setState({ narration: ids.length ? ids : null }, false);
-export const closeNarration = () => setState({ narration: null }, false);
-
 /**
- * Swap a voice line's sound for a recording of the user's own voice. Words, speaker and start time are kept;
- * the length follows the recording (and the story grows if the new take runs past the end).
+ * Give a written (silent) line its voice, e.g. one generated with ElevenLabs. Words, speaker and start time are kept;
+ * the length follows the audio (and the story grows if it runs past the end).
  */
-export function replaceVoiceAudio(id: string, take: { blobKey: string; bufferDuration: number; rate: number }) {
+export function replaceVoiceAudio(id: string, take: { blobKey: string; bufferDuration: number; rate?: number; provider: 'eleven' | 'file'; voiceId?: string }) {
   mutate((p) => {
     const c = p.audio.find((x) => x.id === id && x.kind === 'voice');
     if (!c) return;
-    c.provider = 'mic';
+    const rate = take.rate ?? 1;
+    c.provider = take.provider;
     c.blobKey = take.blobKey;
     c.bufferDuration = take.bufferDuration;
     c.rate = take.rate;
-    c.duration = take.bufferDuration / take.rate;
-    c.voiceId = undefined;
+    c.duration = take.bufferDuration / rate;
+    c.voiceId = take.voiceId;
     const end = c.start + c.duration;
     if (end > p.duration) p.duration = clamp(Math.ceil(end), MIN_DURATION, MAX_DURATION);
   });

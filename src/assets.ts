@@ -182,6 +182,21 @@ export const PROPS: ArtAsset[] = [
   prop('cake', 'Cake', '🎂', ['#ff9fc7', '#ffd966', '#9fd8ff'], (c) =>
     `<rect x="40" y="104" width="120" height="70" rx="10" fill="${c}"/><path d="M40 118 q15 18 30 0 q15 18 30 0 q15 18 30 0 q15 18 30 0 v-14 h-120z" fill="#fff"/>
      <rect x="96" y="66" width="8" height="38" rx="3" fill="#5db5ff"/><ellipse cx="100" cy="58" rx="8" ry="12" fill="#ffb347"/><ellipse cx="100" cy="60" rx="4" ry="7" fill="#ffe27a"/>`),
+  prop('rocket', 'Rocket', '🚀', ['#ff5d73', '#5db5ff', '#ffd23f'], (c) =>
+    `<path d="M70 150 L46 182 L82 166 Z" fill="${shade(c, -0.12)}"/><path d="M130 150 L154 182 L118 166 Z" fill="${shade(c, -0.12)}"/>
+     <path d="M84 168 Q100 196 116 168 Z" fill="#ffb347"/><path d="M90 168 Q100 186 110 168 Z" fill="#ffe27a"/>
+     <path d="M100 14 C140 46 146 112 128 168 L72 168 C54 112 60 46 100 14 Z" fill="#f4f0f7"/>
+     <path d="M100 14 C118 28 128 44 134 62 L66 62 C72 44 82 28 100 14 Z" fill="${c}"/>
+     <circle cx="100" cy="100" r="20" fill="#7fd6ff" stroke="${c}" stroke-width="8"/><circle cx="94" cy="94" r="6" fill="#fff" opacity=".7"/>
+     <rect x="72" y="150" width="56" height="12" rx="4" fill="${c}"/>`),
+  prop('fish', 'Fish', '🐠', ['#ff9f5a', '#ffd23f', '#b78bff', '#5db5ff'], (c) =>
+    `<path d="M150 100 L192 66 L184 100 L192 134 Z" fill="${shade(c, -0.1)}"/>
+     <ellipse cx="96" cy="100" rx="62" ry="44" fill="${c}"/>
+     <path d="M70 64 Q96 40 122 62" fill="${shade(c, -0.1)}"/>
+     <path d="M86 74 Q100 100 86 126" stroke="#fff" stroke-width="8" fill="none" opacity=".6"/>
+     <path d="M116 70 Q130 100 116 130" stroke="#fff" stroke-width="8" fill="none" opacity=".6"/>
+     <circle cx="62" cy="92" r="10" fill="#2b2233"/><circle cx="65" cy="89" r="3.5" fill="#fff"/>
+     <path d="M40 108 Q48 116 56 110" stroke="#2b2233" stroke-width="4" fill="none" stroke-linecap="round"/>`),
 ];
 
 export const ART: ArtAsset[] = [...CHARACTERS, ...PROPS];

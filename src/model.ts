@@ -33,6 +33,8 @@ export interface SceneObject {
   keyframes: Keyframe[]; // sorted by t
   behavior: Behavior;
   entrance: Entrance;
+  /** time ranges [start, end) when a character is asleep: its eyes stay closed */
+  asleep?: [number, number][];
 }
 
 export interface BackgroundClip {
@@ -292,6 +294,12 @@ const OBJECT_DEFAULTS: Partial<SceneObject> = { behavior: 'none', entrance: 'pop
 const HEX = /^#[0-9a-f]{6}$/i;
 const AUDIO_DEFAULTS: Partial<AudioClip> = { volume: 1 };
 
+function validRanges(v: unknown): [number, number][] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const ok = v.filter((r): r is [number, number] => Array.isArray(r) && r.length === 2 && r.every((x) => typeof x === 'number' && Number.isFinite(x)) && r[1] > r[0]);
+  return ok.length ? ok : undefined;
+}
+
 /** Older saves used the browser's computer voice ('browser'). That voice is gone: those lines become silent drafts. */
 function migrateClip(c: AudioClip & { pitch?: number }): AudioClip {
   const { pitch: _pitch, ...rest } = c;
@@ -316,7 +324,7 @@ export function normalizeProject(raw: unknown): Project | null {
     title: typeof r.title === 'string' ? r.title : 'My Story',
     duration,
     duckMusic: r.duckMusic !== false,
-    objects: objects.map((o) => ({ ...OBJECT_DEFAULTS, ...o, color: HEX.test(String(o.color)) ? o.color : '#ffffff', name: typeof o.name === 'string' ? o.name : o.id, keyframes: [...o.keyframes].sort((a, b) => a.t - b.t) })),
+    objects: objects.map((o) => ({ ...OBJECT_DEFAULTS, ...o, asleep: validRanges(o.asleep), color: HEX.test(String(o.color)) ? o.color : '#ffffff', name: typeof o.name === 'string' ? o.name : o.id, keyframes: [...o.keyframes].sort((a, b) => a.t - b.t) })),
     backgrounds,
     audio: audio.map((a) => migrateClip({ ...AUDIO_DEFAULTS, ...a, label: typeof a.label === 'string' ? a.label : a.kind })),
   });

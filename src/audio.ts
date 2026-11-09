@@ -54,6 +54,13 @@ export const MUSIC: MusicPreset[] = [
     chords: [Am, F, Am, G, Am, F, Dm, Am],
   },
   {
+    // "Twinkle, Twinkle, Little Star" (traditional melody, public domain) on a music box.
+    id: 'twinkle', label: 'Twinkle Twinkle', emoji: '⭐', bpm: 96, beatsPerBar: 4, style: 'musicbox',
+    melody: [[72, 72, 79, 79], [81, 81, 79, 0], [77, 77, 76, 76], [74, 74, 72, 0], [79, 79, 77, 77], [76, 76, 74, 0],
+      [79, 79, 77, 77], [76, 76, 74, 0], [72, 72, 79, 79], [81, 81, 79, 0], [77, 77, 76, 76], [74, 74, 72, 0]],
+    chords: [C, F, F, C, C, G, C, G, C, F, F, C],
+  },
+  {
     id: 'silly', label: 'Silly Dance', emoji: '🕺', bpm: 138, beatsPerBar: 4, style: 'silly',
     melody: [[72, 74, 72, 0], [67, 69, 67, 0], [72, 74, 76, 77], [79, 0, 0, 0], [76, 74, 72, 74], [76, 0, 72, 0], [74, 71, 67, 71], [72, 0, 0, 0]],
     chords: [C, C, F, C, Em, Am, G, C],
@@ -344,59 +351,6 @@ export async function elevenSpeak(text: string, voiceId: string, apiKey: string)
   });
   if (!res.ok) throw await elevenError(res);
   return res.blob();
-}
-
-// ---------------------------------------------------------------------------
-// Microphone recording
-// ---------------------------------------------------------------------------
-
-export class MicError extends Error {}
-
-export interface MicRecording {
-  /** Finish and return the recording. */
-  stop: () => Promise<Blob>;
-  /** Throw the recording away and release the microphone immediately. */
-  cancel: () => void;
-}
-
-export async function startMicRecording(): Promise<MicRecording> {
-  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-    throw new MicError(
-      window.isSecureContext
-        ? 'This browser can’t record audio.'
-        : 'Browsers only allow the microphone on a secure page. Open StoryBox at http://localhost:5173 on this computer (not a network address like 192.168…), or serve it over https.',
-    );
-  }
-  let stream: MediaStream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-  } catch (e) {
-    const name = (e as DOMException).name;
-    throw new MicError(
-      name === 'NotFoundError' ? 'No microphone was found.'
-        : name === 'NotAllowedError' || name === 'SecurityError' ? 'Microphone access was blocked. Allow it in the browser address bar and try again.'
-        : 'The microphone could not be started (is another app using it?).',
-    );
-  }
-  const rec = new MediaRecorder(stream);
-  const chunks: Blob[] = [];
-  rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-  rec.start();
-  return {
-    cancel: () => {
-      rec.onstop = null;
-      if (rec.state !== 'inactive') rec.stop();
-      stream.getTracks().forEach((t) => t.stop());
-    },
-    stop: () =>
-      new Promise((resolve) => {
-        rec.onstop = () => {
-          stream.getTracks().forEach((t) => t.stop());
-          resolve(new Blob(chunks, { type: rec.mimeType || 'audio/webm' }));
-        };
-        rec.stop();
-      }),
-  };
 }
 
 // ---------------------------------------------------------------------------

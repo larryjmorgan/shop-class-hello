@@ -141,7 +141,8 @@ export function renderFrame(ctx: CanvasRenderingContext2D, p: Project, time: num
       drawText(ctx, o);
     } else {
       const talking = o.kind === 'character' && (opts?.mouthOpen ? opts.mouthOpen(o) : !!speakingClip(p, o.id, t) && mouthOpenAt(t));
-      const blink = o.kind === 'character' && blinkAt(t, hashSeed(o.id));
+      const asleep = !!o.asleep?.some(([a, b]) => t >= a && t < b);
+      const blink = o.kind === 'character' && (asleep || blinkAt(t, hashSeed(o.id)));
       const img = requestImage(o.assetId, o.color, talking, blink) ?? requestImage(o.assetId, o.color, false, false);
       if (img) {
         ctx.drawImage(img, -OBJ_BASE / 2, -OBJ_BASE / 2, OBJ_BASE, OBJ_BASE);

@@ -1,30 +1,38 @@
 import { useMemo } from 'react';
 import { CHARACTERS } from '../assets';
-import { FilmIcon } from './icons';
 import { listMovies } from './movies';
+import { listKidStories } from './story';
 
-const bunny = CHARACTERS.find((c) => c.id === 'bunny')!;
-const bear = CHARACTERS.find((c) => c.id === 'bear')!;
-const pic = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+const pic = (id: string, mouthOpen = false) => {
+  const c = CHARACTERS.find((x) => x.id === id)!;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(c.svg(c.colors[0], { mouthOpen, blink: false }))}`;
+};
 
-/** The first screen: two giant pictures and a small grown-ups lock. */
-export function Home({ onPlay, onMovies, onGrownUps }: { onPlay: () => void; onMovies: () => void; onGrownUps: () => void }) {
-  const movies = useMemo(() => listMovies(), []);
-  const latest = movies[0];
+/** The first screen: make a story (biggest), my stories, puppet play, and a small grown-ups lock. */
+export function Home({ onMake, onStories, onPuppets, onGrownUps }: { onMake: () => void; onStories: () => void; onPuppets: () => void; onGrownUps: () => void }) {
+  const count = useMemo(() => listKidStories().length + listMovies().length, []);
+  const latest = useMemo(() => listKidStories()[0], []);
   return (
     <div className="home">
-      <button className="home-tile play" onClick={onPlay} aria-label="Play: make a puppet movie">
+      <button className="home-tile make" onClick={onMake} aria-label="Make a story">
         <span className="friends">
-          <img src={pic(bunny.svg(bunny.colors[0], { mouthOpen: true, blink: false }))} alt="" className="wiggle" draggable={false} />
-          <img src={pic(bear.svg(bear.colors[0], { mouthOpen: false, blink: false }))} alt="" className="wiggle late" draggable={false} />
+          <img src={pic('bunny', true)} alt="" className="wiggle" draggable={false} />
+          <img src={pic('princess')} alt="" className="wiggle late" draggable={false} />
+          <img src={pic('dino')} alt="" className="wiggle" draggable={false} />
         </span>
-        <span className="home-icon">🎭</span>
+        <span className="home-icon">📖</span>
       </button>
-      <button className="home-tile movies" onClick={onMovies} aria-label={`My movies (${movies.length})`}>
-        {latest?.poster ? <img src={latest.poster} alt="" className="poster" draggable={false} /> : <span className="big-icon"><FilmIcon /></span>}
-        <span className="home-icon corner"><FilmIcon /></span>
-        {movies.length > 0 && <span className="badge">{movies.length}</span>}
-      </button>
+      <div className="home-col">
+        <button className="home-tile movies" onClick={onStories} aria-label={`My stories (${count})`}>
+          {latest?.thumb ? <img src={latest.thumb} alt="" className="poster" draggable={false} /> : <span className="huge-emoji">📚</span>}
+          <span className="home-icon">📚</span>
+          {count > 0 && <span className="badge">{count}</span>}
+        </button>
+        <button className="home-tile play" onClick={onPuppets} aria-label="Puppet play">
+          <img src={pic('bear')} alt="" className="wiggle small-friend" draggable={false} />
+          <span className="home-icon">🎭</span>
+        </button>
+      </div>
       <button className="lock" onClick={onGrownUps} aria-label="Grown-ups">🔒</button>
     </div>
   );
