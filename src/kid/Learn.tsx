@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CHARACTERS } from '../assets';
 import { resumeAudio } from '../audio';
 import {
-  ACTIVITIES, ROUND, TRACE, colourTask, countTask, getLevel, letterTask, recordRound, shapeById, shapeTask, type Activity, type ColourTask,
+  ACTIVITIES, ROUND, TRACE, colourTask, countTask, getLevel, isVowel, letterTask, readingTask, recordRound, shapeById, shapeTask, type Activity, type ColourTask,
 } from './learn';
 import { TheaterAudio } from './theaterAudio';
 
@@ -35,19 +35,27 @@ export function Learn({ onHome }: { onHome: () => void }) {
         <span className="maker-step" aria-hidden="true">🧮</span>
       </div>
       <div className="learn-hub">
-        <button className="learn-tile count" onClick={() => { setActivity('count'); sound('pop', 0.4); }} aria-label="Counting">
-          <span className="lt-big">1 2 3</span><span className="lt-row">🍎🍎🍎</span>
-        </button>
         <button className="learn-tile letters" onClick={() => { setActivity('letters'); sound('pop', 0.4); }} aria-label="Letters">
           <span className="lt-big letter">a</span><span className="lt-row">👆</span>
+          <span className="tile-name inflow">Letters</span>
+        </button>
+        <button className="learn-tile reading" onClick={() => { setActivity('reading'); sound('pop', 0.4); }} aria-label="Reading">
+          <span className="lt-word"><b>c</b><b className="v">a</b><b>t</b></span><span className="lt-row">🐱</span>
+          <span className="tile-name inflow">Reading</span>
+        </button>
+        <button className="learn-tile count" onClick={() => { setActivity('count'); sound('pop', 0.4); }} aria-label="Counting">
+          <span className="lt-big">1 2 3</span><span className="lt-row">🍎🍎🍎</span>
+          <span className="tile-name inflow">Counting</span>
         </button>
         <button className="learn-tile colours" onClick={() => { setActivity('colours'); sound('pop', 0.4); }} aria-label="Colours">
           <span className="lt-tablets"><i style={{ background: '#e53935' }} /><i style={{ background: '#fdd835' }} /><i style={{ background: '#1e88e5' }} /></span>
+          <span className="tile-name inflow">Colours</span>
         </button>
         <button className="learn-tile shapes" onClick={() => { setActivity('shapes'); sound('pop', 0.4); }} aria-label="Shapes">
           <svg viewBox="0 0 300 100" className="lt-shapes" aria-hidden="true">
             <circle cx="50" cy="50" r="40" fill="#e53935" /><rect x="110" y="10" width="80" height="80" fill="#1e88e5" /><path d="M250 8 L294 92 H206 Z" fill="#43a047" />
           </svg>
+          <span className="tile-name inflow">Shapes</span>
         </button>
       </div>
     </div>
@@ -96,6 +104,8 @@ function Round({ activity, sound, onBack }: { activity: Activity; sound: Sound; 
         <CountTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
       ) : activity === 'letters' ? (
         <LetterTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
+      ) : activity === 'reading' ? (
+        <ReadingTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
       ) : activity === 'colours' ? (
         <ColourTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
       ) : (
@@ -109,6 +119,78 @@ type TaskProps = { level: number; sound: Sound; onSolved: (misses: number) => vo
 let lastCount: number | undefined;
 let lastColour: string | undefined;
 const recentLetters: string[] = [];
+const recentWords: string[] = [];
+
+/**
+ * 📖 First reading. She taps the letters of a short word left to right (a grown-up says each sound with her; each
+ * letter has a picture clue for its sound). Level 1: then the picture appears. Level 2: pick the picture for the word.
+ * Level 3: pick it from look-alike words (cat / hat / bat), without the clues.
+ */
+function ReadingTaskView({ level, sound, onSolved }: TaskProps) {
+  const task = useMemo(() => {
+    const t = readingTask(level, Math.random, recentWords);
+    recentWords.push(t.word);
+    if (recentWords.length > 8) recentWords.shift();
+    return t;
+  }, [level]);
+  const letters = [...task.word];
+  const [lit, setLit] = useState(0); // letters sounded out so far
+  const [right, setRight] = useState<string | null>(null);
+  const [shaking, shake] = useShake();
+  const misses = useRef(0);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  const after = (ms: number, f: () => void) => { timers.current.push(setTimeout(f, ms)); };
+  const read = lit >= letters.length;
+
+  const tapLetter = (k: number) => {
+    if (read) return;
+    if (k !== lit) { shake(`l${lit}`); return; } // "this one next": left to right
+    const n = lit + 1;
+    setLit(n);
+    sound(n >= letters.length ? 'twinkle' : 'pop', 0.5);
+    if (n >= letters.length && task.choices.length === 0) {
+      after(1300, () => { setRight(task.word); sound('yay', 0.7); });
+      after(3000, () => onSolved(0));
+    }
+  };
+  const choose = (w: string) => {
+    if (!read || right) return;
+    if (w === task.word) { setRight(w); sound('yay', 0.7); after(1500, () => onSolved(misses.current)); }
+    else { misses.current++; shake(w); sound('boing', 0.35); }
+  };
+  const showCue = (k: number) => task.cueMode === 'always' || (task.cueMode === 'after' && k < lit);
+
+  return (
+    <div className="learn-task reading-task">
+      <div className={`word-row${read ? ' blended' : ''}`}>
+        {letters.map((l, k) => (
+          <button
+            key={k} onClick={() => tapLetter(k)} aria-label={`Letter ${l}`}
+            className={`letter-tile ${isVowel(l) ? 'vowel' : 'consonant'}${k < lit ? ' lit' : ''}${k === lit && !read ? ' next' : ''}${shaking === `l${k}` ? ' shake' : ''}`}
+          >
+            <span className="lt-char">{l}</span>
+            <span className="lt-cue" aria-hidden="true">{showCue(k) ? task.cues[k] : ''}</span>
+          </button>
+        ))}
+      </div>
+      {task.choices.length === 0 ? (
+        <div className="reveal">
+          {right ? <span className="reveal-pic" role="img" aria-label={`It says ${task.word}`}>{task.pic}</span> : <span className="reveal-q" aria-hidden="true">?</span>}
+        </div>
+      ) : (
+        <div className={`pic-choices${read ? ' show' : ''}`}>
+          {task.choices.map((c) => (
+            <button
+              key={c.word} disabled={!read} onClick={() => choose(c.word)} aria-label={`Picture: ${c.word}`}
+              className={`pic-choice${shaking === c.word ? ' shake' : ''}${right === c.word ? ' right' : ''}`}
+            >{c.pic}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** 🔢 Tap each thing to count it (each gets its number), then tap the matching numeral. */
 function CountTaskView({ level, sound, onSolved }: TaskProps) {

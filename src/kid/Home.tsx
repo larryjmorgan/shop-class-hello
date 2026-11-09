@@ -29,6 +29,7 @@ export function Home({ onMake, onOwn, onStories, onPaint, onLearn, onPuppets, on
           <img src={pic('princess')} alt="" className="wiggle late" draggable={false} />
         </span>
         <span className="home-icon">📖</span>
+        <span className="tile-name">Story time</span>
       </button>
       <button className="home-tile own" onClick={onOwn} aria-label="My own story">
         <span className="friends">
@@ -36,23 +37,28 @@ export function Home({ onMake, onOwn, onStories, onPaint, onLearn, onPuppets, on
           <img src={pic('puppy', true)} alt="" className="wiggle" draggable={false} />
         </span>
         <span className="home-icon">🎨</span>
+        <span className="tile-name">My own story</span>
       </button>
       <button className="home-tile movies" onClick={onStories} aria-label={`My stories (${count})`}>
         {latest?.thumb ? <img src={latest.thumb} alt="" className="poster" draggable={false} /> : <span className="huge-emoji">📚</span>}
         <span className="home-icon">📚</span>
         {count > 0 && <span className="badge">{count}</span>}
+        <span className="tile-name">My stories</span>
       </button>
       <button className="home-tile paint" onClick={onPaint} aria-label="Paint a friend">
         <span className="huge-emoji">🖍️</span>
         <span className="home-icon">🖌️</span>
+        <span className="tile-name">Paint a friend</span>
       </button>
       <button className="home-tile learn" onClick={onLearn} aria-label="Learn">
         <span className="learn-peek" aria-hidden="true"><b>1</b><b>a</b><b>▲</b></span>
         <span className="home-icon">🧮</span>
+        <span className="tile-name">Learn</span>
       </button>
       <button className="home-tile play" onClick={onPuppets} aria-label="Puppet play">
         <img src={pic('bear')} alt="" className="wiggle small-friend" draggable={false} />
         <span className="home-icon">🎭</span>
+        <span className="tile-name">Puppet play</span>
       </button>
       <button className={`lock${needsGrownUp ? ' attention' : ''}`} onClick={onGrownUps} aria-label={needsGrownUp ? 'Grown-ups (backup paused)' : 'Grown-ups'}>🔒</button>
     </div>
