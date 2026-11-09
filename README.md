@@ -179,11 +179,11 @@ A deployed copy is worth having: it can be **added to an iPad/iPhone/Android hom
 
 Every push to `main` is built by `.github/workflows/deploy.yml`, which always attaches two downloads to the run (Actions tab → the run → *Artifacts*): **StoryBox-single-file** (the double-click file above) and **storybox-site** (the full website as a ZIP, for any static host).
 
-**GitHub Pages (optional; free for public repos, paid plan needed for private ones):**
+**GitHub Pages (free for public repositories):**
 
-1. In the repository: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-2. **Settings → Secrets and variables → Actions → Variables → New repository variable**: name `DEPLOY_PAGES`, value `true`.
-3. Push to `main` (or run the workflow by hand from the *Actions* tab). Your app appears at `https://<your-user>.github.io/<repo>/`.
+1. The repository is public, and **Settings → Pages → Build and deployment → Source** is **GitHub Actions**.
+2. Every push to `main` then publishes the app at `https://<your-user>.github.io/<repo>/` (for this one, `https://larryjmorgan.github.io/shop-class-hello/`). You can also run the workflow by hand from the *Actions* tab.
+3. A private repository needs a paid plan for Pages; there, also add the repository variable `DEPLOY_PAGES` = `true`.
 
 **Anywhere else:** run `npm run build` and upload the `dist/` folder to any static host (Netlify Drop, Cloudflare Pages, a school/web server). The build uses relative links, so it works at a site root or in a sub-folder.
 
