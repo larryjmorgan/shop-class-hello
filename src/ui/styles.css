@@ -223,3 +223,4 @@ input[type="range"] { width: 100%; accent-color: var(--brand); }
   .stage { width: 100%; height: auto; }
   .library, .inspector { max-height: 340px; }
 }
+.menu-pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MAX_DURATION, MIN_DURATION, clamp, countDropped, fmtTime } from '../model';
 import { download, projectFromFile, projectToFile, safeName } from '../projectFile';
+import { backupFileName, describeRestore, makeBackup, restoreBackup } from '../backup';
 import {
   deleteSelection, deleteSelectedKeyframe, getState, getTime, newSampleStory, newStory, redo, setDuration, setTime, setTitle, undo, useStore, usePlaying, useTime,
 } from '../store';
@@ -66,6 +67,7 @@ export function App({ onKidMode }: { onKidMode?: () => void } = {}) {
   const [dialog, setDialog] = useState<'none' | 'export' | 'settings' | 'help' | 'stories'>('none');
   const [tall, setTall] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const restoreRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -129,6 +131,12 @@ export function App({ onKidMode }: { onKidMode?: () => void } = {}) {
               catch { alert('Sorry, the project file could not be created.'); }
             }}>💾 Save file…</button>
             <button onClick={() => fileRef.current?.click()}>📂 Add a story from a file…</button>
+            <hr />
+            <button onClick={async () => {
+              try { const { blob } = await makeBackup(); download(blob, backupFileName()); }
+              catch { alert('Sorry, the backup could not be made.'); }
+            }} title="All stories (kids' and Studio), painted friends and Learn levels in one file">🗄 Back up everything…</button>
+            <button onClick={() => restoreRef.current?.click()}>♻ Restore a backup…</button>
           </div>
         </details>
         <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={async (e) => {
@@ -139,6 +147,13 @@ export function App({ onKidMode }: { onKidMode?: () => void } = {}) {
             const imported = await projectFromFile(f); // validated first, then added as a NEW story (nothing is replaced)
             pause(); setTime(0); newStory(imported);
           } catch (err) { alert((err as Error).message); }
+        }} />
+        <input ref={restoreRef} type="file" accept=".json,application/json" hidden onChange={async (e) => {
+          const f = e.target.files?.[0];
+          e.target.value = '';
+          if (!f) return;
+          try { alert(describeRestore(await restoreBackup(f))); }
+          catch (err) { alert((err as Error).message); }
         }} />
         <button className="btn" onClick={() => setDialog('settings')} title="ElevenLabs key">⚙ Settings</button>
         <button className="btn" onClick={() => setDialog('help')} aria-label="Help">?</button>

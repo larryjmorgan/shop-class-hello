@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BACKGROUNDS } from '../assets';
+import { backupFileName, describeRestore, makeBackup, restoreBackup } from '../backup';
 import { fmtTime, type Project } from '../model';
 import { download, safeName } from '../projectFile';
 import { ExportDialog } from '../ui/Dialogs';
@@ -38,6 +39,33 @@ export function StoriesShelf({ onHome, onNew, onEdit, onEditOwn, onOpenStudio }:
   const [gate, setGate] = useState(false);
   const [exporting, setExporting] = useState<Project | null>(null);
   const [message, setMessage] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const restoreRef = useRef<HTMLInputElement>(null);
+
+  const backUp = async () => {
+    setBusy(true);
+    try {
+      const { blob, counts } = await makeBackup();
+      download(blob, backupFileName());
+      setNote(`Backup saved to your Downloads: ${counts.stories} ${counts.stories === 1 ? 'story' : 'stories'} and ${counts.painted} painted ${counts.painted === 1 ? 'friend' : 'friends'}. Move it to iCloud Drive (or anywhere safe) to keep it.`);
+    } catch {
+      setNote('Sorry, the backup could not be made.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const restore = async (f: File) => {
+    setBusy(true);
+    try {
+      setNote(describeRestore(await restoreBackup(f)));
+      setTick((t) => t + 1);
+    } catch (err) {
+      setNote((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => () => { if (movie) URL.revokeObjectURL(movie.url); }, [movie]);
 
@@ -67,6 +95,15 @@ export function StoriesShelf({ onHome, onNew, onEdit, onEditOwn, onOpenStudio }:
         )}
         <button className="kbtn round" onClick={onNew} aria-label="Make a new story">➕</button>
       </div>
+
+      {parent && (
+        <div className="backup-row">
+          <button className="btn" onClick={() => void backUp()} disabled={busy} aria-label="Back up everything">💾 Back up everything</button>
+          <button className="btn" onClick={() => restoreRef.current?.click()} disabled={busy} aria-label="Restore a backup">📂 Restore a backup</button>
+          <input ref={restoreRef} type="file" accept=".json,application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void restore(f); }} />
+          {note && <span className="backup-note" role="status">{note}</span>}
+        </div>
+      )}
 
       {stories.length === 0 && movies.length === 0 ? (
         <div className="empty">
