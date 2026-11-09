@@ -65,3 +65,28 @@ export async function deleteBlob(key: string): Promise<void> {
 export function requestPersistentStorage(): void {
   try { void navigator.storage?.persist?.(); } catch { /* not supported */ }
 }
+
+// Small non-blob values that must survive reloads but can't go in localStorage (e.g. a file handle for automatic
+// backups). Kept in the same object store under a "value:" prefix, so no database upgrade is needed.
+export async function putValue(key: string, value: unknown): Promise<boolean> {
+  try {
+    await run('readwrite', (s) => s.put(value, `value:${key}`));
+    return true;
+  } catch {
+    return false;
+  }
+}
+export async function getValue<T>(key: string): Promise<T | undefined> {
+  try {
+    return (await run('readonly', (s) => s.get(`value:${key}`))) as T | undefined;
+  } catch {
+    return undefined;
+  }
+}
+export async function deleteValue(key: string): Promise<void> {
+  try {
+    await run('readwrite', (s) => s.delete(`value:${key}`));
+  } catch {
+    /* ignore */
+  }
+}

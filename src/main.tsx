@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { startAutoBackup } from './autoBackup';
 import { requestPersistentStorage } from './db';
 import './kid/painted'; // her painted friends, registered before anything is drawn
 import { flushSave } from './store';
@@ -12,6 +13,7 @@ import './kid/kid.css';
 window.addEventListener('pagehide', flushSave);
 document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flushSave());
 requestPersistentStorage();
+void startAutoBackup(); // keeps the chosen backup file (e.g. in iCloud Drive) up to date
 
 // Offline support + "Add to Home Screen". Production builds only, so development is never served from a cache.
 if (import.meta.env.PROD && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {

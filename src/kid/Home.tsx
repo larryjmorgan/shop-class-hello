@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useAutoBackup } from '../autoBackup';
 import { CHARACTERS } from '../assets';
 import { listMovies } from './movies';
 import { listOwnStories } from './own';
@@ -16,6 +17,8 @@ const pic = (id: string, mouthOpen = false) => {
 export function Home({ onMake, onOwn, onStories, onPaint, onLearn, onPuppets, onGrownUps }: {
   onMake: () => void; onOwn: () => void; onStories: () => void; onPaint: () => void; onLearn: () => void; onPuppets: () => void; onGrownUps: () => void;
 }) {
+  const auto = useAutoBackup().state;
+  const needsGrownUp = auto === 'paused' || auto === 'error';
   const count = useMemo(() => listKidStories().length + listOwnStories().length + listMovies().length, []);
   const latest = useMemo(() => [...listKidStories(), ...listOwnStories()].sort((a, b) => b.updatedAt - a.updatedAt)[0], []);
   return (
@@ -51,7 +54,7 @@ export function Home({ onMake, onOwn, onStories, onPaint, onLearn, onPuppets, on
         <img src={pic('bear')} alt="" className="wiggle small-friend" draggable={false} />
         <span className="home-icon">🎭</span>
       </button>
-      <button className="lock" onClick={onGrownUps} aria-label="Grown-ups">🔒</button>
+      <button className={`lock${needsGrownUp ? ' attention' : ''}`} onClick={onGrownUps} aria-label={needsGrownUp ? 'Grown-ups (backup paused)' : 'Grown-ups'}>🔒</button>
     </div>
   );
 }

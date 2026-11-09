@@ -354,3 +354,9 @@
 /* ----- grown-ups: backup ----- */
 .backup-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 0 18px 10px; }
 .backup-note { background: rgba(255, 255, 255, .92); border-radius: 14px; padding: 8px 12px; font-weight: 700; max-width: 720px; }
+.auto-backup-line { flex-basis: 100%; }
+.auto-backup { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; background: rgba(255, 255, 255, .92); border-radius: 14px; padding: 8px 12px; font-weight: 700; }
+.auto-backup small { font-weight: 500; }
+.auto-backup.warn { background: #fff1d6; }
+.auto-backup.muted { font-weight: 500; }
+.lock.attention::after { content: ''; position: absolute; top: 2px; right: 2px; width: 14px; height: 14px; border-radius: 50%; background: #ff9800; border: 2px solid #fff; }

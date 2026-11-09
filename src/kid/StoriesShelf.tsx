@@ -3,6 +3,7 @@ import { BACKGROUNDS } from '../assets';
 import { backupFileName, describeRestore, makeBackup, restoreBackup } from '../backup';
 import { fmtTime, type Project } from '../model';
 import { download, safeName } from '../projectFile';
+import { AutoBackupControl } from '../ui/AutoBackupControl';
 import { ExportDialog } from '../ui/Dialogs';
 import { listMovies, loadMovie, removeMovie, type MovieMeta } from './movies';
 import { compileOwnStory, deleteOwnStory, listOwnStories, ownTitle } from './own';
@@ -102,6 +103,7 @@ export function StoriesShelf({ onHome, onNew, onEdit, onEditOwn, onOpenStudio }:
           <button className="btn" onClick={() => restoreRef.current?.click()} disabled={busy} aria-label="Restore a backup">📂 Restore a backup</button>
           <input ref={restoreRef} type="file" accept=".json,application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void restore(f); }} />
           {note && <span className="backup-note" role="status">{note}</span>}
+          <div className="auto-backup-line"><AutoBackupControl /></div>
         </div>
       )}
 

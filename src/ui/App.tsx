@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { MAX_DURATION, MIN_DURATION, clamp, countDropped, fmtTime } from '../model';
 import { download, projectFromFile, projectToFile, safeName } from '../projectFile';
+import { turnOffAutoBackup, turnOnAutoBackup, useAutoBackup } from '../autoBackup';
 import { backupFileName, describeRestore, makeBackup, restoreBackup } from '../backup';
 import {
   deleteSelection, deleteSelectedKeyframe, getState, getTime, newSampleStory, newStory, redo, setDuration, setTime, setTitle, undo, useStore, usePlaying, useTime,
 } from '../store';
 import { pause, seek, toggle } from '../transport';
+import { AutoBackupControl } from './AutoBackupControl';
 import { ExportDialog, Modal, SettingsDialog } from './Dialogs';
 import { Inspector } from './Inspector';
 import { Library } from './Library';
@@ -68,6 +70,9 @@ export function App({ onKidMode }: { onKidMode?: () => void } = {}) {
   const [tall, setTall] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
+  const auto = useAutoBackup();
+  const autoState = auto.state;
+  const autoNeeds = autoState === 'paused' || autoState === 'error';
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -106,7 +111,7 @@ export function App({ onKidMode }: { onKidMode?: () => void } = {}) {
   }, []);
 
   return (
-    <div className={`app${tall ? ' tall' : ''}${saveFailed ? ' has-banner' : ''}`}>
+    <div className={`app${tall ? ' tall' : ''}${saveFailed || autoNeeds ? ' has-banner' : ''}`}>
       <header className="topbar">
         <div className="brand">🎬 <span>StoryBox</span></div>
         {onKidMode && <button className="btn" onClick={onKidMode} title="Back to the kids' puppet screen">🧒 Kids' mode</button>}
@@ -137,6 +142,8 @@ export function App({ onKidMode }: { onKidMode?: () => void } = {}) {
               catch { alert('Sorry, the backup could not be made.'); }
             }} title="All stories (kids' and Studio), painted friends and Learn levels in one file">🗄 Back up everything…</button>
             <button onClick={() => restoreRef.current?.click()}>♻ Restore a backup…</button>
+            {autoState === 'off' && <button onClick={() => void turnOnAutoBackup()}>🔄 Turn on automatic backup…</button>}
+            {(autoState === 'ok' || autoState === 'saving') && <button onClick={() => void turnOffAutoBackup()} title={`Saving to ${auto.fileName}`}>🔄 Turn off automatic backup</button>}
           </div>
         </details>
         <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={async (e) => {
@@ -159,9 +166,12 @@ export function App({ onKidMode }: { onKidMode?: () => void } = {}) {
         <button className="btn" onClick={() => setDialog('help')} aria-label="Help">?</button>
         <button className="btn primary" onClick={() => setDialog('export')}>🎬 Export video</button>
       </header>
+      {(autoNeeds || saveFailed) && <div className="banners">
+      {autoNeeds && <div className="banner auto-banner"><AutoBackupControl compact /></div>}
       {saveFailed && (
         <div className="banner" role="alert">⚠ Your story couldn’t be autosaved (browser storage is full or blocked). Use <b>Project → Save file…</b> now so you don’t lose your work.</div>
       )}
+      </div>}
       <main className="workspace">
         <Library />
         <section className="center">

@@ -110,6 +110,22 @@ On 📚 **My stories**, press 🔒, answer the sum, then:
 
 Puppet movies recorded with an earlier version are videos and are not in the backup; save each one with its **⬇ Save** button.
 
+### Automatic backup (Chrome or Edge on a computer)
+
+Set it up once and the backup file keeps itself up to date:
+
+1. On the shelf's grown-up tools (or in the Studio under **Project**), press **🔄 Turn on automatic backup…**.
+2. In the save window, choose **iCloud Drive** (Mac: in the sidebar; Windows: the iCloud Drive folder from iCloud for Windows) and keep the name `StoryBox backup.json`.
+3. That's it. About 15 seconds after anything changes, the app rewrites that file, and iCloud uploads it. The shelf shows when it last saved. If nothing changed, nothing is written.
+
+Things to know:
+
+* **After the app is reopened, Chrome may ask again.** If it does, automatic backup pauses: a small orange dot appears on the home screen's 🔒, and the Studio (and the shelf's grown-up tools) shows **▶ Resume**. Press it; it catches up straight away. If Chrome's question offers **"Allow on every visit"**, choose it so you aren't asked again. Nothing is lost while paused; it just waits.
+* It always writes the whole backup in one go (to a temporary file that replaces the old one), so the file is never half-written. It is the same file as **💾 Back up everything** makes, so **📂 Restore a backup** reads it.
+* If the file is moved or deleted, or the app ever has trouble reopening it, it stops and asks you to **Choose file…** again.
+* Changes from the last few seconds before the app is closed are written the next time it is opened.
+* **Turn off** stops it (the file stays where it is). Safari and Firefox don't support this; use **💾 Back up everything** there.
+
 **Putting the backup in iCloud Drive:**
 
 * **Mac:** in Finder, drag the file from **Downloads** to **iCloud Drive** in the sidebar. Or have Chrome always ask where to save: ⋮ → **Settings** → **Downloads** → turn on **Ask where to save each file before downloading** (or **Change…** the location to iCloud Drive).
@@ -175,6 +191,7 @@ Stories (and any ElevenLabs audio) stay on the device that made them (they are n
 ## Known limitations
 
 * Real-time export (above); no faster-than-real-time render.
+* Automatic backup was tested in Chromium with a browser-managed stand-in for the chosen file (the test can't click the real save window), including closing and reopening the browser. It was not tested writing into a real iCloud Drive folder or from the double-click file, so check once that `StoryBox backup.json` shows a recent time in iCloud Drive.
 * The art is built in (9 characters plus her painted ones, 16 props, 8 scenes, 5 music loops, 8 sound effects) and Story time has 6 scenarios. There is no image/video import yet. New scenarios are plain data in `src/kid/scenarios.ts`.
 * Painted friends are kept in this browser on this device (they travel with **Back up everything**). A single Studio story saved with *Project → Save file…* and opened on another device shows the plain character in place of a painted one.
 * The Learn activities are modelled on common Montessori materials, but a Montessori teacher has not reviewed them. Letters show a picture but don't say the letter's sound (there are no voices in the app), so a grown-up saying the sound helps. Tracing checks how much of the letter is covered, not the stroke order.
@@ -196,6 +213,7 @@ src/audio.ts        synthesised music/SFX, mixer with ducking, ElevenLabs
 src/exporter.ts     canvas + audio -> MediaRecorder
 src/store.ts        app state, undo/redo, autosave, editing actions, story switching
 src/backup.ts       "Back up everything" / "Restore a backup" (one file for all stories, painted friends, Learn)
+src/autoBackup.ts   automatic backup: keeps a chosen file (e.g. in iCloud Drive) up to date
 src/library.ts      the "My stories" storage (index + one key per story), audio bookkeeping
 src/thumb.ts        library picture thumbnails
 src/transport.ts    play / pause / seek
