@@ -129,6 +129,52 @@ export const CHARACTERS: ArtAsset[] = [
       <circle cx="100" cy="30" r="4" fill="#ff5d9b"/>
       ${cheeks(98, 22)}${eyes(86, 14, f, 7)}${mouth(100, { ...f })}`),
   },
+  {
+    id: 'puppy', label: 'Puppy', emoji: '🐶', kind: 'character',
+    colors: ['#e0b07a', '#f4f0ea', '#9a6b4f', '#ffd27f', '#c9c9d4'],
+    svg: (c, f) => svg(`
+      <path d="M146 168 Q186 150 176 118" stroke="${c}" stroke-width="14" fill="none" stroke-linecap="round"/>
+      <ellipse cx="100" cy="166" rx="44" ry="32" fill="${c}"/><ellipse cx="100" cy="170" rx="24" ry="19" fill="${shade(c, 0.18)}"/>
+      <ellipse cx="68" cy="190" rx="18" ry="9" fill="${shade(c, -0.08)}"/><ellipse cx="132" cy="190" rx="18" ry="9" fill="${shade(c, -0.08)}"/>
+      <circle cx="100" cy="100" r="48" fill="${c}"/>
+      <circle cx="78" cy="74" r="13" fill="${shade(c, -0.14)}"/>
+      <ellipse cx="54" cy="104" rx="17" ry="34" fill="${shade(c, -0.22)}" transform="rotate(18 54 104)"/>
+      <ellipse cx="146" cy="104" rx="17" ry="34" fill="${shade(c, -0.22)}" transform="rotate(-18 146 104)"/>
+      <ellipse cx="100" cy="120" rx="25" ry="18" fill="${shade(c, 0.26)}"/>
+      ${cheeks(112, 32)}${eyes(92, 20, f)}
+      <ellipse cx="100" cy="110" rx="10" ry="7" fill="#2b2233"/>${mouth(122, f)}`),
+  },
+  {
+    id: 'unicorn', label: 'Unicorn', emoji: '🦄', kind: 'character',
+    colors: ['#ffffff', '#ffd6ec', '#d9ccff', '#cdeeff', '#fff3b0'],
+    svg: (c, f) => svg(`
+      <ellipse cx="100" cy="166" rx="44" ry="32" fill="${c}" stroke="${shade(c, -0.1)}" stroke-width="2"/>
+      <ellipse cx="66" cy="190" rx="16" ry="9" fill="#b78bff"/><ellipse cx="134" cy="190" rx="16" ry="9" fill="#b78bff"/>
+      <circle cx="62" cy="78" r="18" fill="#ff8fc7"/><circle cx="56" cy="102" r="16" fill="#ffd23f"/><circle cx="60" cy="124" r="14" fill="#7fd6ff"/>
+      <polygon points="68,62 76,34 92,56" fill="${c}" stroke="${shade(c, -0.1)}" stroke-width="2"/>
+      <polygon points="132,62 124,34 108,56" fill="${c}" stroke="${shade(c, -0.1)}" stroke-width="2"/>
+      <circle cx="100" cy="100" r="46" fill="${c}" stroke="${shade(c, -0.1)}" stroke-width="2"/>
+      <polygon points="90,58 110,58 100,12" fill="#ffd54a" stroke="#e0a800" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M93 44 L107 40 M95 30 L105 27" stroke="#e0a800" stroke-width="3"/>
+      <circle cx="84" cy="58" r="12" fill="#b78bff"/><circle cx="104" cy="54" r="10" fill="#ff8fc7"/>
+      <ellipse cx="100" cy="124" rx="26" ry="17" fill="${shade(c, -0.04)}"/>
+      ${cheeks(108, 32)}${eyes(92, 20, f)}${mouth(126, f)}`),
+  },
+  {
+    id: 'penguin', label: 'Penguin', emoji: '🐧', kind: 'character',
+    colors: ['#2b2f45', '#3b5ba5', '#6b4fa0', '#1f6f6f'],
+    svg: (c, f) => svg(`
+      <ellipse cx="72" cy="190" rx="18" ry="8" fill="#ffa23a"/><ellipse cx="128" cy="190" rx="18" ry="8" fill="#ffa23a"/>
+      <ellipse cx="40" cy="128" rx="13" ry="36" fill="${c}" transform="rotate(18 40 128)"/>
+      <ellipse cx="160" cy="128" rx="13" ry="36" fill="${c}" transform="rotate(-18 160 128)"/>
+      <ellipse cx="100" cy="116" rx="60" ry="76" fill="${c}"/>
+      <ellipse cx="100" cy="138" rx="40" ry="52" fill="#fbfbff"/>
+      <ellipse cx="100" cy="88" rx="42" ry="32" fill="#fbfbff"/>
+      ${cheeks(98, 30)}${eyes(84, 17, f, 8)}
+      ${f.mouthOpen
+        ? `<polygon points="86,98 114,98 100,108" fill="#ffa23a"/><polygon points="88,110 112,110 100,120" fill="#ff8a1f"/><ellipse cx="100" cy="109" rx="8" ry="3" fill="#7a2230"/>`
+        : `<polygon points="86,99 114,99 100,115" fill="#ffa23a"/>`}`),
+  },
 ];
 
 const prop = (id: string, label: string, emoji: string, colors: string[], body: (c: string) => string): ArtAsset => ({
@@ -200,7 +246,23 @@ export const PROPS: ArtAsset[] = [
 ];
 
 export const ART: ArtAsset[] = [...CHARACTERS, ...PROPS];
-export const artById = (id: string) => ART.find((a) => a.id === id);
+
+// Friends she painted herself (src/kid/painted.ts registers them). Their ids look like "paint-<base>-<n>".
+const extraArt = new Map<string, ArtAsset>();
+export const registerArt = (a: ArtAsset) => { extraArt.set(a.id, a); };
+export const unregisterArt = (id: string) => { extraArt.delete(id); };
+/** The base character a painted friend was made from (e.g. "bunny" for "paint-bunny-k3x"). */
+export const paintedBase = (id: string) => (id.startsWith('paint-') ? CHARACTERS.find((c) => c.id === id.split('-')[1]) : undefined);
+
+export const artById = (id: string): ArtAsset | undefined => {
+  const a = ART.find((x) => x.id === id) ?? extraArt.get(id);
+  if (a) return a;
+  // A painted friend that was thrown away, or a story file from another device: show the plain character instead.
+  const base = paintedBase(id);
+  return base && { ...base, id, colors: ['#ffffff'], svg: (_c, f) => base.svg(base.colors[0], f) };
+};
+/** Every character she can pick: her painted friends first (newest first), then the built-in ones. */
+export const allCharacters = (): ArtAsset[] => [...[...extraArt.values()].reverse(), ...CHARACTERS];
 
 // ---------------- Backgrounds ----------------
 

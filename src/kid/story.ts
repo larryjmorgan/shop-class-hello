@@ -133,7 +133,7 @@ export function slotsX(n: number, layout: 'normal' | 'wide' = 'normal'): number[
 
 const charScale = (n: number) => (n <= 2 ? 1.25 : n === 3 ? 1.1 : 1.0);
 
-const applies = (who: Who, i: number) => who === 'all' || (who === 'star' ? i === 0 : i > 0);
+const applies = (who: Who, i: number) => (typeof who === 'number' ? i === who : who === 'all' || (who === 'star' ? i === 0 : i > 0));
 
 /** Builds one character's keyframes, holding still between actions. */
 class Track {
@@ -253,6 +253,36 @@ function act(beats: Beat[], i: number, n: number, segStart: number, segEnd: numb
         tr.to(t + (b.dur ?? 1.6), { x, flip: x < tr.cur.x });
         break;
       }
+      case 'fly': { // float up and down, like a balloon
+        const base = tr.cur.y;
+        for (let k = 0; k < Math.max(1, Math.round(b.dur ?? 2)); k++) {
+          const t = tr.hold(T + k * 1.8);
+          tr.to(t + 0.8, { y: base - 150, rot: -6 }, 'ease');
+          tr.to(t + 1.6, { y: base, rot: 0 });
+        }
+        break;
+      }
+      case 'shake': { // a quick silly wiggle
+        const r0 = tr.cur.rot;
+        const t = tr.hold(T);
+        [-15, 15, -15, 15, -10, 10, 0].forEach((d, k) => tr.to(t + 0.12 * (k + 1), { rot: r0 + d }));
+        break;
+      }
+      case 'grow': { // grow big, stay big for a moment, shrink back
+        const s0 = tr.cur.scale;
+        const t = tr.hold(T);
+        tr.to(t + 0.6, { scale: s0 * 1.5 }, 'ease');
+        tr.to(t + 1.6, { scale: s0 * 1.5 }, 'ease');
+        tr.to(t + 2.2, { scale: s0 });
+        break;
+      }
+      case 'run': { // dash off to the right and come back in from the left
+        const t = tr.hold(T);
+        tr.to(t + 0.9, { x: OFF_RIGHT, flip: false });
+        tr.to(t + 0.95, { x: OFF_LEFT });
+        tr.to(t + 1.9, { x: home.x });
+        break;
+      }
     }
   }
   wakeUp(segEnd);
@@ -307,12 +337,29 @@ function textObject(id: string, text: string, color: string, start: number, end:
   return { id, name: `Text: ${text.split('\n')[0]}`, kind: 'text', assetId: 'text', color, text, start, end, behavior, entrance, keyframes: [{ t: start, x, y, scale, rot: 0, opacity: 1, flip: false, ease: 'linear' }] };
 }
 
-/** Turn her story into a playable Project: title card, scenes, "The End". */
-export function compileStory(story: KidStory): Project {
-  const sc = scenarioById(story.scenarioId);
-  if (!sc) throw new Error(`Unknown scenario ${story.scenarioId}`);
-  const cast = story.cast.filter((c) => artById(c.assetId)?.kind === 'character').slice(0, MAX_CAST);
-  const n = cast.length;
+/** One scene of a movie: what happens, who is in it, its music and her stickers. */
+export interface MovieScene {
+  def: SceneDef;
+  cast: CastMember[];
+  music: string | null;
+  stickers: string[];
+}
+
+export interface MovieSpec {
+  /** the Project's name */
+  title: string;
+  /** the words on the title card */
+  heading: string;
+  /** who appears on the title card and "The End" */
+  titleCast: CastMember[];
+  scenes: MovieScene[];
+  ending: 'hop' | 'sleep';
+}
+
+const onlyCharacters = (cast: CastMember[]) => cast.filter((c) => artById(c.assetId)?.kind === 'character').slice(0, MAX_CAST);
+
+/** Build a playable Project: title card, the scenes, "The End", music per scene and sound effects. */
+export function buildMovie(spec: MovieSpec): Project {
   const objects: SceneObject[] = [];
   const audio: AudioClip[] = [];
   const backgrounds: BackgroundClip[] = [];
@@ -324,18 +371,22 @@ export function compileStory(story: KidStory): Project {
     sfxAt.set(key, true);
     audio.push({ id: `sfx${audio.length}`, kind: 'sfx', start: t, duration: p.seconds, volume, label: p.label, preset: p.id });
   };
+  const scenes = spec.scenes;
+  if (scenes.length === 0) throw new Error('A story needs at least one scene');
 
   // segment times
   const sceneStarts: number[] = [];
   let t = TITLE_SECONDS;
-  for (const s of sc.scenes) {
+  for (const s of scenes) {
     sceneStarts.push(t);
-    t += s.seconds;
+    t += s.def.seconds;
   }
   const endStart = t;
   const total = Math.min(MAX_DURATION, Math.ceil(endStart + END_SECONDS));
 
-  const characters = (segIdx: number, def: Pick<SceneDef, 'layout' | 'floaty'>, beats: Beat[], segStart: number, segEnd: number, stagger = 0) => {
+  const characters = (segIdx: number, castIn: CastMember[], def: Pick<SceneDef, 'layout' | 'floaty'>, beats: Beat[], segStart: number, segEnd: number, stagger = 0) => {
+    const cast = onlyCharacters(castIn);
+    const n = cast.length;
     const xs = slotsX(n, def.layout);
     const y = def.floaty ? FLOAT_Y : GROUND_Y;
     cast.forEach((c, i) => {
@@ -353,48 +404,61 @@ export function compileStory(story: KidStory): Project {
   };
 
   // ---- title card ----
-  const first = sc.scenes[0];
+  const first = scenes[0].def;
   backgrounds.push({ id: 'bg-title', bgId: first.bg, start: 0, end: TITLE_SECONDS, transition: 'cut' });
-  objects.push(textObject('title', `${sc.title}${n ? `\nwith ${castNames({ ...story, cast })}` : ''}`, '#ffe066', 0.2, TITLE_SECONDS, STAGE_W / 2, 150, 0.9, 'float', 'pop'));
-  characters(0, first, [{ at: 1.8, who: 'all', act: 'wave' }], 0.5, TITLE_SECONDS, 0.3);
+  objects.push(textObject('title', spec.heading, '#ffe066', 0.2, TITLE_SECONDS, STAGE_W / 2, 150, 0.9, 'float', 'pop'));
+  characters(0, spec.titleCast, first, [{ at: 1.8, who: 'all', act: 'wave' }], 0.5, TITLE_SECONDS, 0.3);
   sfx(0.3, 'twinkle', 0.6);
 
   // ---- scenes ----
-  sc.scenes.forEach((def, i) => {
+  scenes.forEach(({ def, cast, stickers }, i) => {
     const segStart = sceneStarts[i];
     const segEnd = segStart + def.seconds;
-    const prev = i === 0 ? first.bg : sc.scenes[i - 1].bg;
+    const prev = i === 0 ? first.bg : scenes[i - 1].def.bg;
     backgrounds.push({ id: `bg${i}`, bgId: def.bg, start: segStart, end: segEnd, transition: def.bg === prev ? 'cut' : 'fade' });
     const own = def.props ?? [];
-    const stickers = placeStickers(story.scenes[i]?.props ?? [], own);
-    [...own, ...stickers].forEach((p, k) => {
+    [...own, ...placeStickers(stickers, own)].forEach((p, k) => {
       const o = propObject(p, segStart, segEnd, `s${i + 1}p${k}`);
       if (!o) return;
       objects.push(o);
       if (p.sfx) sfx(segStart + (p.at ?? 0), p.sfx, k >= own.length ? 0.5 : 0.8);
     });
-    characters(i + 1, def, def.beats, segStart, segEnd);
-    def.beats.forEach((b) => { if (cast.some((_, ci) => applies(b.who, ci))) sfx(segStart + b.at, b.sfx); });
+    characters(i + 1, cast, def, def.beats, segStart, segEnd);
+    const n = onlyCharacters(cast).length;
+    def.beats.forEach((b) => { if (Array.from({ length: n }, (_, ci) => applies(b.who, ci)).some(Boolean)) sfx(segStart + b.at, b.sfx); });
   });
 
   // ---- the end ----
-  const last = sc.scenes[sc.scenes.length - 1];
+  const last = scenes[scenes.length - 1].def;
   backgrounds.push({ id: 'bg-end', bgId: last.bg, start: endStart, end: total, transition: 'cut' });
-  const endBeats: Beat[] = sc.ending === 'sleep' ? [{ at: 0.3, who: 'all', act: 'sleep' }] : [{ at: 0.5, who: 'all', act: 'hop', dur: 2 }];
-  characters(sc.scenes.length + 1, last, endBeats, endStart, total);
+  const endBeats: Beat[] = spec.ending === 'sleep' ? [{ at: 0.3, who: 'all', act: 'sleep' }] : [{ at: 0.5, who: 'all', act: 'hop', dur: 2 }];
+  characters(scenes.length + 1, spec.titleCast, last, endBeats, endStart, total);
   objects.push(textObject('the-end', 'The End', '#ffffff', endStart + 0.2, total, STAGE_W / 2, 150, 1, 'pulse', 'pop'));
-  sfx(endStart + 0.4, sc.ending === 'sleep' ? 'twinkle' : 'tada');
+  sfx(endStart + 0.4, spec.ending === 'sleep' ? 'twinkle' : 'tada');
 
   // ---- music: each scene's choice; the first also plays under the title, the last under "The End" ----
-  sc.scenes.forEach((_, i) => {
-    const id = story.scenes[i]?.music ?? null;
-    if (!id) return;
+  scenes.forEach(({ def, music }, i) => {
+    if (!music) return;
     const start = i === 0 ? 0 : sceneStarts[i];
-    const end = i === sc.scenes.length - 1 ? total : sceneStarts[i] + sc.scenes[i].seconds;
-    audio.push({ id: `music${i}`, kind: 'music', start, duration: end - start, volume: 0.75, label: musicChoice(id).label, preset: id });
+    const end = i === scenes.length - 1 ? total : sceneStarts[i] + def.seconds;
+    audio.push({ id: `music${i}`, kind: 'music', start, duration: end - start, volume: 0.75, label: musicChoice(music).label, preset: music });
   });
 
-  return { version: 1, title: storyTitle({ ...story, cast }), duration: total, duckMusic: true, objects, backgrounds, audio };
+  return { version: 1, title: spec.title, duration: total, duckMusic: true, objects, backgrounds, audio };
+}
+
+/** Turn her ready-made story into a playable Project. */
+export function compileStory(story: KidStory): Project {
+  const sc = scenarioById(story.scenarioId);
+  if (!sc) throw new Error(`Unknown scenario ${story.scenarioId}`);
+  const cast = onlyCharacters(story.cast);
+  return buildMovie({
+    title: storyTitle({ ...story, cast }),
+    heading: `${sc.title}${cast.length ? `\nwith ${castNames({ ...story, cast })}` : ''}`,
+    titleCast: cast,
+    ending: sc.ending,
+    scenes: sc.scenes.map((def, i) => ({ def, cast, music: story.scenes[i]?.music ?? null, stickers: story.scenes[i]?.props ?? [] })),
+  });
 }
 
 // ---------- the shelf (saved in this browser) ----------
@@ -426,8 +490,10 @@ export const getKidStory = (id: string): KidStory | undefined => readAll().find(
 
 /** Insert or update. Returns false if the browser refused (storage full/blocked). */
 export function saveKidStory(s: KidStory, now = Date.now()): boolean {
-  const others = readAll().filter((x) => x.id !== s.id);
-  return writeAll([...others, { ...s, updatedAt: now }]);
+  const all = readAll();
+  const old = all.find((x) => x.id === s.id);
+  // keep the shelf picture if this copy doesn't carry one (it is refreshed shortly after each change)
+  return writeAll([...all.filter((x) => x.id !== s.id), { ...s, thumb: s.thumb ?? old?.thumb, updatedAt: now }]);
 }
 
 export function setKidStoryThumb(id: string, thumb: string): void {

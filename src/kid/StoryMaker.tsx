@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BACKGROUNDS, CHARACTERS, artById } from '../assets';
+import { BACKGROUNDS, allCharacters, artById } from '../assets';
+import { friendLabel } from './painted';
 import { resumeAudio } from '../audio';
 import { STAGE_H, STAGE_W, type Project } from '../model';
 import { onImageLoaded, renderFrame } from '../render';
@@ -122,12 +123,12 @@ export function StoryMaker({ storyId, onHome, onShelf }: { storyId?: string; onH
           <button className="kbtn big good next" onClick={goBoard} disabled={story.cast.length === 0} aria-label="Next">✓</button>
         </div>
         <div className="cast-grid" aria-label={`Pick up to ${MAX_CAST} friends`}>
-          {CHARACTERS.map((c) => {
+          {allCharacters().map((c) => {
             const m = story.cast.find((x) => x.assetId === c.id);
             return (
               <div key={c.id} className={`cast-tile${m ? ' on' : ''}`}>
                 <button
-                  className="cast-pick" aria-pressed={!!m} aria-label={`${m ? 'Remove' : 'Add'} ${c.label}`}
+                  className="cast-pick" aria-pressed={!!m} aria-label={`${m ? 'Remove' : 'Add'} ${friendLabel(c)}`}
                   onClick={() => { setStory(toggleCast(story, c.id)); void audio().sfx(m ? 'pop' : 'boing', 0.6); }}
                 >
                   <img src={pic(c.id, m?.color)} alt="" draggable={false} />

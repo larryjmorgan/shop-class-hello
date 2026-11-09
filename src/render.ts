@@ -15,6 +15,11 @@ export function onImageLoaded(fn: () => void): () => void {
   return () => listeners.delete(fn);
 }
 
+/** Drop the cached pictures of one art piece (after a painted friend is painted again). */
+export function forgetArt(assetId: string): void {
+  for (const k of [...imageCache.keys()]) if (k.startsWith(`${assetId}|`)) { imageCache.delete(k); loading.delete(k); }
+}
+
 function variantKey(assetId: string, color: string, mouth: boolean, blink: boolean) {
   return `${assetId}|${color}|${mouth ? 1 : 0}${blink ? 1 : 0}`;
 }

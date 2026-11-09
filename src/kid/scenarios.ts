@@ -4,12 +4,14 @@
 
 import type { Behavior } from '../model';
 
-export type Who = 'all' | 'star' | 'friends';
+/** 'star' = first character, 'friends' = the others, a number = that one character (used by "my own story") */
+export type Who = 'all' | 'star' | 'friends' | number;
 
 export type Act =
   | 'enter-left' | 'enter-right' | 'enter-top'
   | 'exit-left' | 'exit-right' | 'exit-up' | 'exit-down'
-  | 'hop' | 'dance' | 'spin' | 'wave' | 'stretch' | 'sleep' | 'wake' | 'walk-to';
+  | 'hop' | 'dance' | 'spin' | 'wave' | 'stretch' | 'sleep' | 'wake' | 'walk-to'
+  | 'fly' | 'shake' | 'grow' | 'run';
 
 export interface Beat {
   /** seconds from the start of the scene */
