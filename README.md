@@ -19,7 +19,7 @@ The Studio borrows the useful ideas from three tools:
 | **DaVinci Resolve** | A multi-track timeline: scenes, one row per character/prop, voices, music, sound effects. Drag bars to move, drag edges to trim, scrub the ruler, cross-fade between scenes, music that ducks under dialogue, undo/redo, export to a video file. |
 | **ElevenLabs** | Type a line and, optionally, generate a studio-quality voice with your own ElevenLabs key. The character's mouth flaps while the line plays. There is deliberately **no voice recording and no robotic computer voice**. |
 
-Everything runs in the browser. There is no server and no account. **My stories** keeps as many stories as you like, each autosaved in the browser, and you can also save a story to a `.storybox.json` file (its audio included) and add it back later.
+Everything runs in the browser. There is no server and no account. **My stories** keeps as many stories as you like, each autosaved in the browser. **💾 Back up everything** saves all of it (every story, her painted friends, her Learn levels) into one file you can keep in iCloud Drive or anywhere else (see [Backing up](#backing-up-icloud-drive-another-computer)).
 
 ## Run it
 
@@ -27,7 +27,7 @@ Everything runs in the browser. There is no server and no account. **My stories*
 
 Open **`standalone/StoryBox.html`** (in this repo) by double-clicking it. It opens on the child's home screen; the 🔒 (answer the sum) opens the Studio. It is the whole app in a single file and runs in Chrome or Edge with no Node.js, no server and no internet. On GitHub: open the file → the **⬇ Download raw file** button → double-click the downloaded file.
 
-* Stories are saved in that browser on that computer. Keep using the same browser (Chrome/Edge) and **don't rename or move the file between uses** if you can avoid it, since the browser links saved stories to where the file lives. Use **Project → Save file…** now and then for a backup.
+* Stories are saved in that browser on that computer. Keep using the same browser (Chrome/Edge) and **don't rename or move the file between uses** if you can avoid it, since the browser links saved stories to where the file lives. Use **💾 Back up everything** now and then (see [Backing up](#backing-up-icloud-drive-another-computer)).
 * It can't be "installed" or work as an offline app the way the https version does; it doesn't need to, since it is already a local file.
 * It is a snapshot of the app. To refresh it after changes, run `npm run build:standalone`, or download **StoryBox-single-file** from the latest *Build and publish* run in the Actions tab.
 
@@ -101,6 +101,21 @@ Both kinds of story are on the shelf, newest first (🎨 marks her own). She tap
 
 A free-play toy: pick a backdrop, tap friends and things to put them on the stage, drag them around (they face the way they walk), tap them to hop, wiggle, spin or squash, and drag them onto the 🗑️ to put them away. 🎵 cycles music. Nothing is recorded.
 
+## Backing up (iCloud Drive, another computer)
+
+On 📚 **My stories**, press 🔒, answer the sum, then:
+
+* **💾 Back up everything** downloads one file, `StoryBox backup YYYY-MM-DD.json`. It holds every Story time and My own story story, every Studio story (with its ElevenLabs audio), her painted friends and her Learn levels. Your ElevenLabs key and settings are **not** included. The same two buttons are in the Studio under **Project**.
+* **📂 Restore a backup** reads such a file. It adds anything that is missing and updates anything the backup has a newer copy of. It never replaces newer work and never deletes anything, so restoring the same file twice is harmless. It also accepts a single Studio `.storybox.json` file (added as a new Studio story).
+
+Puppet movies recorded with an earlier version are videos and are not in the backup; save each one with its **⬇ Save** button.
+
+**Putting the backup in iCloud Drive:**
+
+* **Mac:** in Finder, drag the file from **Downloads** to **iCloud Drive** in the sidebar. Or have Chrome always ask where to save: ⋮ → **Settings** → **Downloads** → turn on **Ask where to save each file before downloading** (or **Change…** the location to iCloud Drive).
+* **Windows:** install **iCloud for Windows** (Microsoft Store) and sign in. This adds an **iCloud Drive** folder in File Explorer. Drag the file there, or set Chrome's download location to it.
+* **To restore**, press **📂 Restore a backup** and pick the file from iCloud Drive.
+
 ## The Studio: making a planned video
 
 1. **Scenes** tab: pick a background. It starts at the playhead; add another later for a scene change.
@@ -155,18 +170,18 @@ Every push to `main` is built by `.github/workflows/deploy.yml`, which always at
 
 **Install it:** on an iPad/iPhone open the page in Safari → Share → **Add to Home Screen**. In Chrome/Edge use the install icon in the address bar (or ⋮ → *Install StoryBox*). Updates arrive by themselves the next time you open the app online (Help shows the build number).
 
-Stories (and any ElevenLabs audio) stay on the device that made them (they are not uploaded anywhere). To move a story to another device, use **Project → Save file…** and add it there with **Add a story from a file…**.
+Stories (and any ElevenLabs audio) stay on the device that made them (they are not uploaded anywhere). To move everything to another device, use **💾 Back up everything** and **📂 Restore a backup** there.
 
 ## Known limitations
 
 * Real-time export (above); no faster-than-real-time render.
 * The art is built in (9 characters plus her painted ones, 16 props, 8 scenes, 5 music loops, 8 sound effects) and Story time has 6 scenarios. There is no image/video import yet. New scenarios are plain data in `src/kid/scenarios.ts`.
-* Painted friends are kept in this browser on this device. A story file saved with *Project → Save file…* and opened on another device shows the plain character in place of a painted one.
+* Painted friends are kept in this browser on this device (they travel with **Back up everything**). A single Studio story saved with *Project → Save file…* and opened on another device shows the plain character in place of a painted one.
 * The Learn activities are modelled on common Montessori materials, but a Montessori teacher has not reviewed them. Letters show a picture but don't say the letter's sound (there are no voices in the app), so a grown-up saying the sound helps. Tracing checks how much of the letter is covered, not the stroke order.
 * Characters are single pieces with a flapping mouth and blinking; there is no limb rigging or frame-by-frame drawing.
 * The kids' screens (stories, painting, Learn, puppet play) were tested in Chrome with a mouse and simulated touch, **not** with a real toddler or a real tablet. I can't listen to audio, so how the music and sound effects actually sound is untested by ear.
 * The ElevenLabs integration was tested against a mocked endpoint, **not** the live service, so the first real generation is worth a quick check.
-* Stories live in this browser's storage on this device; use *Project → Save file…* for backups. **Safari (iPad/iPhone) can erase a website's stored data after about a week of not using it**; installing the app to the Home Screen is reported to avoid that, but save a project file for anything you care about.
+* Stories live in this browser's storage on this device; use **💾 Back up everything** for backups. **Safari (iPad/iPhone) can erase a website's stored data after about a week of not using it**; installing the app to the Home Screen is reported to avoid that, but save a project file for anything you care about.
 * Sound is scheduled when you press Play, so changes you make to voices/music *while it is playing* are heard on the next play (pictures update immediately).
 * Audio of clips you delete stays in browser storage while the story exists (Undo needs them); deleting the whole story erases the ones nothing else uses.
 * Offline use and Add-to-Home-Screen were verified in Chrome (including a simulated sub-folder deployment and update), **not** on a real iPad.
@@ -180,6 +195,7 @@ src/render.ts       draws a frame; shared by the editor preview and the exporter
 src/audio.ts        synthesised music/SFX, mixer with ducking, ElevenLabs
 src/exporter.ts     canvas + audio -> MediaRecorder
 src/store.ts        app state, undo/redo, autosave, editing actions, story switching
+src/backup.ts       "Back up everything" / "Restore a backup" (one file for all stories, painted friends, Learn)
 src/library.ts      the "My stories" storage (index + one key per story), audio bookkeeping
 src/thumb.ts        library picture thumbnails
 src/transport.ts    play / pause / seek

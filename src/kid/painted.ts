@@ -39,15 +39,19 @@ export const isPainted = (id: string) => id.startsWith('paint-');
 /** For screen readers / tests: "painted Bunny" vs "Bunny". */
 export const friendLabel = (a: ArtAsset) => (isPainted(a.id) ? `painted ${a.label}` : a.label);
 
+/** A checked copy of a stored (or backed-up) painted friend, or null if it is damaged. */
+export function normalizePainted(raw: unknown): PaintedFriend | null {
+  const p = raw as Partial<PaintedFriend> | null;
+  if (!p || typeof p.id !== 'string' || !isPainted(p.id) || typeof p.paint !== 'string' || !PNG_URL.test(p.paint)) return null;
+  if (typeof p.baseId !== 'string' || !CHARACTERS.some((c) => c.id === p.baseId) || p.id.split('-')[1] !== p.baseId) return null;
+  return { id: p.id, baseId: p.baseId, paint: p.paint, createdAt: Number(p.createdAt) || 0, updatedAt: Number(p.updatedAt) || 0 };
+}
+
 function readAll(): PaintedFriend[] {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || '[]');
     if (!Array.isArray(raw)) return [];
-    return raw.filter(
-      (p): p is PaintedFriend =>
-        !!p && typeof p.id === 'string' && isPainted(p.id) && typeof p.paint === 'string' && PNG_URL.test(p.paint) &&
-        CHARACTERS.some((c) => c.id === p.baseId) && p.id.split('-')[1] === p.baseId,
-    ).map((p) => ({ ...p, createdAt: Number(p.createdAt) || 0, updatedAt: Number(p.updatedAt) || 0 }));
+    return raw.map(normalizePainted).filter((p): p is PaintedFriend => !!p);
   } catch {
     return [];
   }

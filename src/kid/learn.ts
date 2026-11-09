@@ -39,6 +39,19 @@ export function getLevel(a: Activity): number {
   const n = Number(readLevels()[a]);
   return Number.isInteger(n) && n >= 1 && n <= MAX_LEVEL ? n : 1;
 }
+export const allLevels = (): Partial<Record<Activity, number>> => Object.fromEntries(ACTIVITIES.map((a) => [a.id, getLevel(a.id)]));
+/** From a backup: keep the higher level of each activity. */
+export function mergeLevels(raw: unknown): void {
+  if (!raw || typeof raw !== 'object') return;
+  const cur = readLevels();
+  const out: Partial<Record<Activity, number>> = { ...cur };
+  for (const { id } of ACTIVITIES) {
+    const n = Number((raw as Record<string, unknown>)[id]);
+    if (Number.isInteger(n) && n >= 1 && n <= MAX_LEVEL) out[id] = Math.max(n, getLevel(id));
+  }
+  try { localStorage.setItem(KEY, JSON.stringify(out)); } catch { /* ignore */ }
+}
+
 /** A round with no wrong taps moves up a level; 3 or more wrong taps moves down. Returns the new level. */
 export function recordRound(a: Activity, misses: number): number {
   const cur = getLevel(a);

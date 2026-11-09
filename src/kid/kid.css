@@ -350,3 +350,7 @@
   .shape-hole, .shape-piece { width: 160px; height: 160px; }
   .count-thing { width: 140px; height: 140px; }
 }
+
+/* ----- grown-ups: backup ----- */
+.backup-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 0 18px 10px; }
+.backup-note { background: rgba(255, 255, 255, .92); border-radius: 14px; padding: 8px 12px; font-weight: 700; max-width: 720px; }

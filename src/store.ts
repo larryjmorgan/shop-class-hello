@@ -200,6 +200,13 @@ export function openStory(id: string): boolean {
   return true;
 }
 
+/** After a backup was restored: if it replaced the open story, show the restored version (no stale copy in memory). */
+export function reloadIfOpen(id: string): void {
+  if (id !== state.currentId) return;
+  const project = readStory(id);
+  if (project) activate(id, project);
+}
+
 /** Create a story (blank unless a project is given), save it, and open it. */
 export function newStory(project: Project = emptyProject()): string {
   flushSave();
