@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Home } from '../kid/Home';
+import { Learn } from '../kid/Learn';
 import { ParentGate } from '../kid/ParentGate';
 import { StoriesShelf } from '../kid/StoriesShelf';
 import { OwnStoryMaker } from '../kid/OwnStoryMaker';
@@ -48,6 +49,7 @@ export function Root() {
       {mode === 'own' && <OwnStoryMaker key={editing ?? 'new'} storyId={editing} onHome={() => setMode('home')} onShelf={() => setMode('stories')} />}
       {mode === 'stories' && <StoriesShelf onHome={() => setMode('home')} onNew={() => setMode('home')} onEdit={(id) => make(id)} onEditOwn={(id) => own(id)} onOpenStudio={openInStudio} />}
       {mode === 'paint' && <Painter onBack={() => setMode('home')} />}
+      {mode === 'learn' && <Learn onHome={() => setMode('home')} />}
       {mode === 'puppets' && <Theater onHome={() => setMode('home')} />}
       {gate && <ParentGate why="The Studio is for grown-ups." onClose={() => setGate(false)} onPass={() => { setGate(false); setMode('studio'); }} />}
     </>

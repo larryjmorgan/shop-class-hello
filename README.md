@@ -2,7 +2,12 @@
 
 Two things in one app, for making short (up to **3 minutes**) animated movies:
 
-* **📖 Story Maker: for a young child.** It opens first. She picks a story (Birthday Party, Beach Day, Bedtime, Space Trip, Under the Sea, Forest Picnic), picks which characters are in it, adds music and "stickers" to each scene, and presses ▶. The app animates the whole story: a title card, three scenes where her characters walk in, hop, dance, wave, fall asleep and so on, and "The End". There is nothing to read and no timeline; everything is big pictures. Her stories are saved on the **📚 My stories** shelf to watch again or change. There is also **🎭 Puppet play**, a free-play toy (drag characters, tap them to make them react).
+* **The kids' corner: for a young child.** It opens first, on six big picture tiles. There is nothing to read and no timeline.
+  * **📖 Story time**: pick a ready-made story (Birthday Party, Beach Day, Bedtime, Space Trip, Under the Sea, Forest Picnic), pick who is in it, add music and "stickers" to each scene, press ▶.
+  * **🎨 My own story**: the next step up. She builds the story scene by scene: 1 to 6 scenes, a backdrop, music and stickers for each, up to 4 friends per scene and 10 things they can do (walk in, hop, dance, spin, wave, sleep, fly, run around, wiggle, grow big).
+  * **🖌️ Paint a friend**: paint a character with her fingers; the painted friend can then be used in her stories.
+  * **🧮 Learn**: counting, letters, colours and shapes, in the spirit of Montessori materials.
+  * **📚 My stories** (watch again or change) and **🎭 Puppet play** (a free-play toy).
 * There is **no microphone and no voice recording** anywhere in the app.
 * **🎬 The Studio: for grown-ups.** A full story editor (below). Grown-up tools on the kids' shelf (behind a small sum a toddler can't answer) save a story as a video file, open it in the Studio to fine-tune, or delete it.
 
@@ -20,7 +25,7 @@ Everything runs in the browser. There is no server and no account. **My stories*
 
 ### Easiest: one file, nothing to install
 
-Open **`standalone/StoryBox.html`** (in this repo) by double-clicking it. It opens on the child's Puppet Theater screen; the 🔒 (answer the sum) opens the Studio. It is the whole app in a single file and runs in Chrome or Edge with no Node.js, no server and no internet. On GitHub: open the file → the **⬇ Download raw file** button → double-click the downloaded file.
+Open **`standalone/StoryBox.html`** (in this repo) by double-clicking it. It opens on the child's home screen; the 🔒 (answer the sum) opens the Studio. It is the whole app in a single file and runs in Chrome or Edge with no Node.js, no server and no internet. On GitHub: open the file → the **⬇ Download raw file** button → double-click the downloaded file.
 
 * Stories are saved in that browser on that computer. Keep using the same browser (Chrome/Edge) and **don't rename or move the file between uses** if you can avoid it, since the browser links saved stories to where the file lives. Use **Project → Save file…** now and then for a backup.
 * It can't be "installed" or work as an offline app the way the https version does; it doesn't need to, since it is already a local file.
@@ -41,22 +46,60 @@ Use a current **Chrome or Edge**. It has only been tested in Chromium; Safari an
 
 To use it on an iPad or share it with family, **put it online over https** (next section).
 
-## The Story Maker (for a young child)
+## The kids' corner (for a young child)
 
-1. **Open the app.** It starts on big pictures: 📖 **make a story** (the biggest), 📚 **my stories**, 🎭 **puppet play**.
-2. **Pick a story** from six picture cards: 🎂 Birthday Party, 🏖️ Beach Day, 🌙 Bedtime, 🚀 Space Trip, 🐠 Under the Sea, 🍎 Forest Picnic.
-3. **Pick who is in it.** Two friends are already picked; tap characters to add or remove them (1 to 4). The coloured dot on a picked character changes its colour. Press the big ✓.
-4. **Make it hers.** Each of the 3 scenes shows a live little picture with:
+The home screen has six tiles: 📖 **Story time**, 🎨 **My own story**, 📚 **My stories**, 🖌️ **Paint a friend**, 🧮 **Learn**, 🎭 **Puppet play**, and a small 🔒 for grown-ups.
+
+### 📖 Story time (ready-made stories)
+
+1. **Pick a story** from six picture cards: 🎂 Birthday Party, 🏖️ Beach Day, 🌙 Bedtime, 🚀 Space Trip, 🐠 Under the Sea, 🍎 Forest Picnic.
+2. **Pick who is in it.** Two friends are already picked; tap characters to add or remove them (1 to 4). The coloured dot on a picked character changes its colour. Press the big ✓.
+3. **Make it hers.** Each of the 3 scenes shows a live little picture with:
    * 🎵: tap to change that scene's music (sunny ☀️, silly 🕺, adventure 🗺️, Twinkle Twinkle ⭐, sleepy 🌙, or off). A few seconds of it plays so she can hear it.
    * ➕: add up to 3 things to the scene (balloons, cake, a rainbow, a rocket, fish…). Tap one again to take it away.
    * The row of faces at the top (✏️) goes back to change who is in the story.
-5. **Press the big green ▶.** The story plays full screen with music and sound effects (big ⏸ / 🔁 / ✅ buttons). It is about 35–40 seconds long.
+4. **Press the big green ▶.** The story plays full screen with music and sound effects (big ⏸ / 🔁 / ✅ buttons). It is about 35–40 seconds long.
 
-Everything is saved automatically as soon as she reaches step 4. On **📚 My stories** she taps a story to watch it, or ✏️ to change it.
+Everything is saved automatically as soon as she reaches step 3. On **📚 My stories** she taps a story to watch it, or ✏️ to change it.
+
+### 🎨 My own story (more choices)
+
+Everything is on one screen, and the big picture keeps replaying the scene she is on, so every change shows straight away.
+
+* **Scenes** along the top (1 to 6; a story is about 16 seconds with one scene and about 56 seconds with six). ➕ adds a scene that starts with the same friends and place. 🗑️ removes a scene after asking (🗑️ yes / ↩️ no).
+* **Backdrops** down the side: tap one to change where this scene happens.
+* **Friends** at the bottom: ➕ adds one (up to 4 per scene). Tap a friend (or tap it on the picture) to choose **what it does** from 10 pictures: 🚶 walk in, 🦘 hop, 💃 dance, 🌀 spin, 👋 wave, 😴 sleep, 🎈 fly, 🏃 run around, 🤪 wiggle, 🦒 grow big. The coloured dot changes its colour, 🗑️ takes it out of the scene, ✓ goes back.
+* 🎵 music and ⭐ stickers (up to 3) per scene, as in Story time.
+* ▶ plays the whole story. It is saved from her first change.
+
+### 🖌️ Paint a friend
+
+Pick a character; it appears white, like a colouring page. She paints it with a finger (several fingers work too): 9 colours plus 🌈 rainbow, a big or small brush, 🧽 rubber, ↩️ undo and 🗑️ start again (which ↩️ can undo). Paint only sticks to the character, so she can't go over the lines, and the eyes and mouth always show through. ✓ saves it.
+
+Painted friends appear first in every friend picker (My own story, Story time, Puppet play, and the Studio's Characters tab), and they still blink and talk. In My own story the 🖌️ tile in the friend picker paints a new friend and puts it straight into the scene. Tapping a painted friend on the paint screen paints it again (every story using it updates); its 🗑️ throws it away after asking, and stories that used it show the plain character instead. Up to 20 painted friends are kept.
+
+### 🧮 Learn
+
+Four short activities modelled on well-known Montessori materials for ages 3 to 5. Each round earns a row of ⭐ and ends with a dancing friend. A wrong tap only makes things wiggle; there are no crosses or buzzers.
+
+| Activity | What she does | Based on |
+| --- | --- | --- |
+| 🔢 **Counting** | Taps each object to count it (each gets its number), then taps the matching numeral | cards and counters |
+| 🔤 **Letters** | Traces a big lowercase letter with a finger; a picture of something that starts with it appears (a 🍎, b 🐻 …) | sandpaper letters |
+| 🎨 **Colours** | Finds the colour tablet that matches | colour tablets |
+| 🔷 **Shapes** | Drags shapes into their holes (or taps a shape, then its hole) | geometric insets |
+
+Each activity has 3 levels that adjust by themselves: a round with no wrong taps moves up, three or more wrong taps moves down. Counting goes up to 3, then 5, then 10. Colours go from red/yellow/blue to 11 colours, then to shades of one colour. Shapes go from 3 to 5 holes. Letters need more of the letter traced at higher levels.
+
+### 📚 My stories and the grown-ups lock
+
+Both kinds of story are on the shelf, newest first (🎨 marks her own). She taps one to watch it, or ✏️ to change it.
 
 **Grown-ups:** on the shelf, press 🔒 and answer the sum to **🎬 save a story as a video file** (to share it), **🛠 open it in the Studio** (a copy, to fine-tune with the full editor), or **🗑 delete** it. The 🔒 on the home screen opens the Studio (or add `#studio` to the end of the web address to go straight there). Puppet movies recorded with an earlier version still appear on the shelf.
 
-**🎭 Puppet play** is a free-play toy: pick a backdrop, tap friends and things to put them on the stage, drag them around (they face the way they walk), tap them to hop, wiggle, spin or squash, and drag them onto the 🗑️ to put them away. 🎵 cycles music. Nothing is recorded.
+### 🎭 Puppet play
+
+A free-play toy: pick a backdrop, tap friends and things to put them on the stage, drag them around (they face the way they walk), tap them to hop, wiggle, spin or squash, and drag them onto the 🗑️ to put them away. 🎵 cycles music. Nothing is recorded.
 
 ## The Studio: making a planned video
 
@@ -117,9 +160,11 @@ Stories (and any ElevenLabs audio) stay on the device that made them (they are n
 ## Known limitations
 
 * Real-time export (above); no faster-than-real-time render.
-* The art is built in (6 characters, 16 props, 8 scenes, 5 music loops, 8 sound effects) and the Story Maker has 6 scenarios. There is no image/video import yet. New scenarios are plain data in `src/kid/scenarios.ts`.
+* The art is built in (9 characters plus her painted ones, 16 props, 8 scenes, 5 music loops, 8 sound effects) and Story time has 6 scenarios. There is no image/video import yet. New scenarios are plain data in `src/kid/scenarios.ts`.
+* Painted friends are kept in this browser on this device. A story file saved with *Project → Save file…* and opened on another device shows the plain character in place of a painted one.
+* The Learn activities are modelled on common Montessori materials, but a Montessori teacher has not reviewed them. Letters show a picture but don't say the letter's sound (there are no voices in the app), so a grown-up saying the sound helps. Tracing checks how much of the letter is covered, not the stroke order.
 * Characters are single pieces with a flapping mouth and blinking; there is no limb rigging or frame-by-frame drawing.
-* The Story Maker and Puppet play were tested in Chrome with a mouse and simulated touch, **not** with a real toddler or a real tablet. I can't listen to audio, so how the music and sound effects actually sound is untested by ear.
+* The kids' screens (stories, painting, Learn, puppet play) were tested in Chrome with a mouse and simulated touch, **not** with a real toddler or a real tablet. I can't listen to audio, so how the music and sound effects actually sound is untested by ear.
 * The ElevenLabs integration was tested against a mocked endpoint, **not** the live service, so the first real generation is worth a quick check.
 * Stories live in this browser's storage on this device; use *Project → Save file…* for backups. **Safari (iPad/iPhone) can erase a website's stored data after about a week of not using it**; installing the app to the Home Screen is reported to avoid that, but save a project file for anything you care about.
 * Sound is scheduled when you press Play, so changes you make to voices/music *while it is playing* are heard on the next play (pictures update immediately).
@@ -141,7 +186,9 @@ src/transport.ts    play / pause / seek
 src/ui/             React UI: Root (kid screens vs studio), the Studio's Stage, Timeline, Library,
                     VoicePanel, Narration, Stories, Inspector, Dialogs, ErrorBoundary
 src/kid/            the kids' screens: scenarios.ts (story content), story.ts (choices -> movie, shelf
-                    storage), StoryMaker/StoryPlayer/StoriesShelf/Home, Theater + puppet.ts (puppet play),
+                    storage), StoryMaker (Story time), own.ts + OwnStoryMaker (My own story),
+                    painted.ts + Painter (paint a friend), learn.ts + Learn (counting, letters, colours,
+                    shapes), StoryPlayer/StoriesShelf/Home, Theater + puppet.ts (puppet play),
                     theaterAudio.ts (sounds + music), gate.ts + ParentGate (grown-ups lock), movies.ts (old movies)
 scripts/             inline-build.mjs (single-file build), to-mp4.sh (video converter)
 public/             app manifest, icons, service worker (offline); vite.config.ts bakes the file list into it
