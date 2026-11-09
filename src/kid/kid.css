@@ -198,3 +198,59 @@
   .own-tray .kbtn.round:not(.small) { width: 60px; height: 60px; min-width: 60px; min-height: 60px; font-size: 28px; }
   .own-tray .play-btn { width: 96px; height: 96px; font-size: 44px; border-width: 7px; }
 }
+
+/* ----- paint a friend ----- */
+.painter { position: fixed; inset: 0; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; user-select: none; -webkit-user-select: none; background: linear-gradient(160deg, #fff4c2, #ffd6ec 55%, #d6e8ff); z-index: 30; }
+.paint-choose { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(30vw, 170px), 1fr)); gap: 18px; padding: 8px 18px 24px; align-content: start; }
+.paint-pick-tile { position: relative; }
+.cast-pick.blank, .cast-pick.painted { background: #fff; }
+.cast-pick.blank img { filter: drop-shadow(0 0 2px rgba(40, 20, 90, .45)); }
+.cast-pick:disabled { opacity: .4; }
+.paint-badge { position: absolute; left: -8px; top: -8px; font-size: 40px; }
+.kbtn.throw { position: absolute; right: -10px; top: -10px; opacity: .85; }
+.confirm-pic { width: 140px; height: 140px; background: #fff; border-radius: 32px; padding: 6px; }
+.confirm-row { align-items: center; }
+.paint-area { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 0 12px 12px; }
+.palette { display: grid; grid-template-columns: repeat(2, 72px); grid-auto-rows: 72px; gap: 10px; align-content: center; }
+.paint-blob { width: 72px; height: 72px; border-radius: 50%; border: 6px solid #fff; cursor: pointer; box-shadow: 0 5px 0 rgba(0, 0, 0, .18); touch-action: manipulation; padding: 0; }
+.paint-blob.rainbow { background: conic-gradient(#ff4b4b, #ffe14d, #4cd964, #3fa9ff, #a066ff, #ff7ac8, #ff4b4b); }
+.paint-blob.on { transform: scale(1.15); border-color: #2a2140; }
+.paint-canvas-area { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.paint-canvas-area canvas { background: radial-gradient(#ece6fb, #d4c9f2); border-radius: 36px; box-shadow: 0 8px 0 rgba(40, 20, 90, .18); touch-action: none; cursor: crosshair; }
+.paint-cheer { position: absolute; top: 4%; right: 8%; font-size: 90px; animation: wiggle 0.8s ease-in-out infinite; }
+.paint-tools { display: flex; flex-direction: column; gap: 12px; justify-content: center; }
+.paint-tools .kbtn.on { background: #ffd23f; }
+.brush .dot { display: block; border-radius: 50%; background: #2a2140; }
+.brush .dot.big { width: 40px; height: 40px; }
+.brush .dot.small { width: 16px; height: 16px; }
+.kbtn.paint-done { min-width: 110px; min-height: 84px; font-size: 52px; }
+.friend-tile-paint { background: linear-gradient(#fff4c2, #ffd6ec) !important; font-size: 64px; display: flex; align-items: center; justify-content: center; }
+.home-tile.paint { background: linear-gradient(#fff07a, #ff9fcf); }
+@media (orientation: portrait) {
+  .paint-area { flex-direction: column; }
+  .palette { grid-template-columns: repeat(5, 64px); grid-auto-rows: 64px; justify-content: center; }
+  .paint-blob { width: 64px; height: 64px; }
+  .paint-tools { flex-direction: row; }
+}
+@media (max-height: 560px) and (orientation: landscape) {
+  .painter .t-top { min-height: 0; padding: 6px 10px; }
+  .palette { grid-template-columns: repeat(2, 50px); grid-auto-rows: 50px; gap: 6px; }
+  .paint-blob { width: 50px; height: 50px; border-width: 4px; }
+  .paint-tools .kbtn.round { width: 54px; height: 54px; min-width: 54px; min-height: 54px; font-size: 26px; }
+  .paint-tools { gap: 6px; }
+}
+
+/* ----- home: six tiles ----- */
+.home.grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); }
+.home.grid .home-tile .friends img { width: 15vmin; height: 15vmin; }
+.home.grid .home-icon { font-size: 9vmin; }
+.home.grid .huge-emoji { font-size: 16vmin; }
+.home.grid .small-friend { width: 18vmin; height: 18vmin; }
+.home-tile.learn { background: linear-gradient(#c3b5ff, #7fb8ff); }
+.learn-peek { display: flex; gap: 1.5vmin; }
+.learn-peek b { width: 11vmin; height: 11vmin; border-radius: 2.5vmin; background: #fff; color: #ff5d73; font: 900 8vmin/11vmin var(--font); text-align: center; box-shadow: 0 .8vmin 0 rgba(0, 0, 0, .15); }
+.learn-peek b:nth-child(2) { color: #3fa9ff; transform: rotate(-6deg); }
+.learn-peek b:nth-child(3) { color: #3fc77f; transform: rotate(5deg); }
+@media (orientation: portrait) {
+  .home.grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 1fr); }
+}

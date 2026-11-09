@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BACKGROUNDS, CHARACTERS, artById } from '../assets';
+import { BACKGROUNDS, allCharacters, artById } from '../assets';
 import { resumeAudio } from '../audio';
 import { OBJ_BASE, STAGE_H, STAGE_W, type Project } from '../model';
 import { objectPoseAt, onImageLoaded, renderFrame } from '../render';
@@ -10,6 +10,8 @@ import {
 } from './own';
 import { STICKERS, musicChoice } from './scenarios';
 import { MAX_SCENE_PROPS, nextMusic } from './story';
+import { friendLabel } from './painted';
+import { Painter } from './Painter';
 import { StoryPlayer } from './StoryPlayer';
 import { TheaterAudio } from './theaterAudio';
 import { useFit16x9 } from './useFit';
@@ -88,6 +90,7 @@ export function OwnStoryMaker({ storyId, onHome, onShelf }: { storyId?: string; 
   const [scene, setScene] = useState(0);
   const [actor, setActor] = useState<number | null>(null);
   const [picker, setPicker] = useState<'friends' | 'stickers' | null>(null);
+  const [painting, setPainting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [saveProblem, setSaveProblem] = useState(false);
@@ -205,8 +208,11 @@ export function OwnStoryMaker({ storyId, onHome, onShelf }: { storyId?: string; 
       {picker && (
         <div className="sticker-picker" role="dialog" aria-label={picker === 'friends' ? 'Add a friend' : 'Add something'}>
           <div className="sticker-grid">
-            {(picker === 'friends' ? CHARACTERS.map((c) => c.id) : STICKERS).map((id) => (
-              <button key={id} className="t-tile" aria-label={`Add ${artById(id)?.label}`} onClick={() => {
+            {picker === 'friends' && (
+              <button className="t-tile friend-tile-paint" onClick={() => { setPicker(null); setPainting(true); sound('pop'); }} aria-label="Paint a new friend">🖌️</button>
+            )}
+            {(picker === 'friends' ? allCharacters().map((c) => c.id) : STICKERS).map((id) => (
+              <button key={id} className="t-tile" aria-label={`Add ${artById(id) ? friendLabel(artById(id)!) : id}`} onClick={() => {
                 if (picker === 'friends') {
                   const next = addActor(story, scene, id);
                   setStory(next);
@@ -233,6 +239,15 @@ export function OwnStoryMaker({ storyId, onHome, onShelf }: { storyId?: string; 
             <button className="kbtn big good" onClick={() => setConfirmDelete(false)} aria-label="No, keep it">↩️</button>
           </div>
         </div>
+      )}
+
+      {painting && (
+        <Painter backIcon="✖" onBack={() => setPainting(false)} onFinished={(id) => {
+          setPainting(false);
+          const next = addActor(story, scene, id);
+          setStory(next);
+          setActor(next.scenes[scene].actors.length - 1);
+        }} />
       )}
 
       {playing && <StoryPlayer project={project} onClose={() => setPlaying(false)} onDone={() => { setPlaying(false); onShelf(); }} />}

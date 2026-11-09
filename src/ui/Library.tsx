@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BACKGROUNDS, CHARACTERS, PROPS, type ArtAsset } from '../assets';
+import { BACKGROUNDS, PROPS, allCharacters, type ArtAsset } from '../assets';
 import { MUSIC, SFX, getAudioContext, decodeBlobDuration, musicLoopSeconds, resumeAudio, loadBuffer } from '../audio';
 import { putBlob } from '../db';
 import { uid } from '../model';
@@ -142,7 +142,7 @@ export function Library() {
         ))}
       </nav>
       <div className="panel">
-        {tab === 'characters' && <ArtGrid items={CHARACTERS} kind="character" />}
+        {tab === 'characters' && <ArtGrid items={allCharacters()} kind="character" />}
         {tab === 'props' && <ArtGrid items={PROPS} kind="prop" />}
         {tab === 'backgrounds' && (
           <div className="grid">

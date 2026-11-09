@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BACKGROUNDS, CHARACTERS, PROPS, type ArtAsset } from '../assets';
+import { BACKGROUNDS, PROPS, allCharacters, type ArtAsset } from '../assets';
 import { resumeAudio } from '../audio';
 import { STAGE_H, STAGE_W, mouthOpenAt } from '../model';
 import { renderFrame } from '../render';
@@ -136,7 +136,7 @@ export function Theater({ onHome }: { onHome: () => void }) {
     void audio().setMusic(MUSIC_CHOICES[next].id);
   };
 
-  const sceneItems = useMemo(() => [...CHARACTERS, ...PROPS], []);
+  const sceneItems = useMemo(() => [...allCharacters(), ...PROPS], []);
 
   return (
     <div className="theater">

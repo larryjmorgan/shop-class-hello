@@ -246,7 +246,23 @@ export const PROPS: ArtAsset[] = [
 ];
 
 export const ART: ArtAsset[] = [...CHARACTERS, ...PROPS];
-export const artById = (id: string) => ART.find((a) => a.id === id);
+
+// Friends she painted herself (src/kid/painted.ts registers them). Their ids look like "paint-<base>-<n>".
+const extraArt = new Map<string, ArtAsset>();
+export const registerArt = (a: ArtAsset) => { extraArt.set(a.id, a); };
+export const unregisterArt = (id: string) => { extraArt.delete(id); };
+/** The base character a painted friend was made from (e.g. "bunny" for "paint-bunny-k3x"). */
+export const paintedBase = (id: string) => (id.startsWith('paint-') ? CHARACTERS.find((c) => c.id === id.split('-')[1]) : undefined);
+
+export const artById = (id: string): ArtAsset | undefined => {
+  const a = ART.find((x) => x.id === id) ?? extraArt.get(id);
+  if (a) return a;
+  // A painted friend that was thrown away, or a story file from another device: show the plain character instead.
+  const base = paintedBase(id);
+  return base && { ...base, id, colors: ['#ffffff'], svg: (_c, f) => base.svg(base.colors[0], f) };
+};
+/** Every character she can pick: her painted friends first (newest first), then the built-in ones. */
+export const allCharacters = (): ArtAsset[] => [...[...extraArt.values()].reverse(), ...CHARACTERS];
 
 // ---------------- Backgrounds ----------------
 

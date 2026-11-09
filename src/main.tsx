@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { requestPersistentStorage } from './db';
+import './kid/painted'; // her painted friends, registered before anything is drawn
 import { flushSave } from './store';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import { Root } from './ui/Root';
