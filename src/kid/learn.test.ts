@@ -78,3 +78,42 @@ describe('learn', () => {
     expect(shuffle([1, 2, 3, 4, 5], seq(9)).sort()).toEqual([1, 2, 3, 4, 5]);
   });
 });
+
+import { WORDS, isVowel, letterCue, readingTask } from './learn';
+describe('reading', () => {
+  it('every word can be sounded out with a picture clue per letter that never gives the answer away', () => {
+    for (const w of WORDS) {
+      expect(w.word).toMatch(/^[a-z]{3}$/);
+      for (const l of w.word) {
+        const c = letterCue(l, w.pic);
+        expect(c).not.toBe('');
+        expect(c).not.toBe(w.pic);
+      }
+    }
+    expect(new Set(WORDS.map((w) => w.pic)).size).toBe(WORDS.length);
+  });
+  it('level 1 just reveals the picture; levels 2-3 ask for it, level 3 with look-alike words', () => {
+    const rng = seq(11);
+    const t1 = readingTask(1, rng);
+    expect(t1.choices).toEqual([]);
+    expect(t1.cueMode).toBe('always');
+    expect(t1.cues).toHaveLength(3);
+    for (let i = 0; i < 100; i++) {
+      const t = readingTask(2 + (i % 2), rng, ['cat']);
+      expect(t.word).not.toBe('cat');
+      expect(t.choices).toHaveLength(3);
+      expect(t.choices.filter((c) => c.word === t.word)).toHaveLength(1);
+      expect(new Set(t.choices.map((c) => c.word)).size).toBe(3);
+    }
+    // look-alikes: "cat" at level 3 is offered with other -at words
+    let tries = 0;
+    let t = readingTask(3, rng);
+    while (t.word !== 'cat' && tries++ < 500) t = readingTask(3, rng);
+    expect(t.word).toBe('cat');
+    expect(t.choices.filter((c) => c.word !== 'cat').every((c) => c.word.endsWith('at'))).toBe(true);
+    expect(t.cueMode).toBe('never');
+  });
+  it('knows the vowels (shown in blue, like a movable alphabet)', () => {
+    expect([...'cat'].map(isVowel)).toEqual([false, true, false]);
+  });
+});

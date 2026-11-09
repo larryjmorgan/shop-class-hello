@@ -1,17 +1,19 @@
 // "Learn": short, picture-only activities in the spirit of Montessori materials for ages 3-5 — counting objects and
 // matching the numeral (cards and counters), tracing lowercase letters with a finger (sandpaper letters), matching
-// colour tablets, and fitting shapes into their holes (geometric insets). No reading, no failing: a wrong tap just
-// wiggles. Each activity has 3 levels that adjust by themselves.
+// colour tablets, fitting shapes into their holes (geometric insets), and first reading: sounding out short words
+// letter by letter and matching them to pictures. No failing: a wrong tap just wiggles. Each activity has 3 levels
+// that adjust by themselves.
 
-export type Activity = 'count' | 'letters' | 'colours' | 'shapes';
+export type Activity = 'count' | 'letters' | 'reading' | 'colours' | 'shapes';
 export const ACTIVITIES: { id: Activity; icon: string; label: string }[] = [
   { id: 'count', icon: '🔢', label: 'Counting' },
   { id: 'letters', icon: '🔤', label: 'Letters' },
+  { id: 'reading', icon: '📖', label: 'Reading' },
   { id: 'colours', icon: '🎨', label: 'Colours' },
   { id: 'shapes', icon: '🔷', label: 'Shapes' },
 ];
 /** Tasks in one round (then a little party). */
-export const ROUND: Record<Activity, number> = { count: 5, letters: 4, colours: 6, shapes: 3 };
+export const ROUND: Record<Activity, number> = { count: 5, letters: 4, reading: 4, colours: 6, shapes: 3 };
 export const MAX_LEVEL = 3;
 
 export type Rng = () => number;
@@ -149,3 +151,42 @@ export function shapeTask(level: number, rng: Rng = Math.random): string[] {
   return shuffle(pool, rng).slice(0, SHAPE_COUNT[level - 1] ?? 3).map((s) => s.id);
 }
 export const shapeById = (id: string) => SHAPES.find((s) => s.id === id)!;
+
+// ---------- reading ----------
+// Short words she can sound out letter by letter (mostly consonant-vowel-consonant), each with a picture.
+export const WORDS: { word: string; pic: string }[] = [
+  { word: 'cat', pic: '🐱' }, { word: 'dog', pic: '🐶' }, { word: 'sun', pic: '☀️' }, { word: 'pig', pic: '🐷' },
+  { word: 'bus', pic: '🚌' }, { word: 'hat', pic: '🎩' }, { word: 'bed', pic: '🛏️' }, { word: 'fox', pic: '🦊' },
+  { word: 'hen', pic: '🐔' }, { word: 'bug', pic: '🐛' }, { word: 'box', pic: '📦' }, { word: 'van', pic: '🚐' },
+  { word: 'pen', pic: '🖊️' }, { word: 'ant', pic: '🐜' }, { word: 'web', pic: '🕸️' }, { word: 'bat', pic: '🦇' },
+  { word: 'rat', pic: '🐀' }, { word: 'nut', pic: '🥜' }, { word: 'egg', pic: '🥚' }, { word: 'cup', pic: '☕' },
+  { word: 'log', pic: '🪵' },
+];
+/** A second picture for a letter's sound, used when the usual one would give the answer away (c is 🐱 but the word is "cat"). */
+const ALT_CUE: Record<string, string> = { c: '🥕', d: '🦆', s: '🧦', p: '🍕', h: '🐴', e: '🐘', x: '🦊' };
+/** The picture clue for one letter's sound, never the same picture as the word's answer. */
+export function letterCue(l: string, avoidPic: string): string {
+  const main = LETTERS.find((x) => x.l === l)?.pic ?? '';
+  return main !== avoidPic ? main : ALT_CUE[l] && ALT_CUE[l] !== avoidPic ? ALT_CUE[l] : '';
+}
+export interface ReadingTask {
+  word: string;
+  pic: string;
+  cues: string[]; // one picture per letter
+  /** level 1: just sound it out and see the picture; 2-3: then pick the right picture */
+  choices: { word: string; pic: string }[];
+  /** when the letter clues show: 1 always, 2 after tapping each letter, 3 never */
+  cueMode: 'always' | 'after' | 'never';
+}
+const similar = (a: string, b: string) => (a.slice(1) === b.slice(1) ? 3 : 0) + (a[0] === b[0] ? 2 : 0) + (a[2] === b[2] ? 1 : 0);
+export function readingTask(level: number, rng: Rng = Math.random, avoid: string[] = []): ReadingTask {
+  const pool = WORDS.filter((w) => !avoid.includes(w.word));
+  const t = pick(pool.length ? pool : WORDS, rng);
+  const cues = [...t.word].map((l) => letterCue(l, t.pic));
+  if (level <= 1) return { ...t, cues, choices: [], cueMode: 'always' };
+  const others = WORDS.filter((w) => w.word !== t.word);
+  // level 3: look-alike words (cat / hat / bat), so every letter matters
+  const ranked = level >= 3 ? shuffle(others, rng).sort((a, b) => similar(t.word, b.word) - similar(t.word, a.word)) : shuffle(others, rng);
+  return { ...t, cues, choices: shuffle([t, ...ranked.slice(0, 2)], rng), cueMode: level >= 3 ? 'never' : 'after' };
+}
+export const isVowel = (l: string) => 'aeiou'.includes(l);

@@ -224,3 +224,4 @@ input[type="range"] { width: 100%; accent-color: var(--brand); }
   .library, .inspector { max-height: 340px; }
 }
 .menu-pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+.auto-banner { background: #fff1d6; color: #5a3b00; } .auto-banner .auto-backup { background: transparent; padding: 0; }

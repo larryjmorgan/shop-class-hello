@@ -6,7 +6,7 @@ Two things in one app, for making short (up to **3 minutes**) animated movies:
   * **📖 Story time**: pick a ready-made story (Birthday Party, Beach Day, Bedtime, Space Trip, Under the Sea, Forest Picnic), pick who is in it, add music and "stickers" to each scene, press ▶.
   * **🎨 My own story**: the next step up. She builds the story scene by scene: 1 to 6 scenes, a backdrop, music and stickers for each, up to 4 friends per scene and 10 things they can do (walk in, hop, dance, spin, wave, sleep, fly, run around, wiggle, grow big).
   * **🖌️ Paint a friend**: paint a character with her fingers; the painted friend can then be used in her stories.
-  * **🧮 Learn**: counting, letters, colours and shapes, in the spirit of Montessori materials.
+  * **🧮 Learn**: letters, first reading, counting, colours and shapes, in the spirit of Montessori materials.
   * **📚 My stories** (watch again or change) and **🎭 Puppet play** (a free-play toy).
 * There is **no microphone and no voice recording** anywhere in the app.
 * **🎬 The Studio: for grown-ups.** A full story editor (below). Grown-up tools on the kids' shelf (behind a small sum a toddler can't answer) save a story as a video file, open it in the Studio to fine-tune, or delete it.
@@ -48,7 +48,7 @@ To use it on an iPad or share it with family, **put it online over https** (next
 
 ## The kids' corner (for a young child)
 
-The home screen has six tiles: 📖 **Story time**, 🎨 **My own story**, 📚 **My stories**, 🖌️ **Paint a friend**, 🧮 **Learn**, 🎭 **Puppet play**, and a small 🔒 for grown-ups.
+The home screen has six tiles, each with its name along the bottom: 📖 **Story time**, 🎨 **My own story**, 📚 **My stories**, 🖌️ **Paint a friend**, 🧮 **Learn**, 🎭 **Puppet play**, and a small 🔒 for grown-ups.
 
 ### 📖 Story time (ready-made stories)
 
@@ -80,16 +80,17 @@ Painted friends appear first in every friend picker (My own story, Story time, P
 
 ### 🧮 Learn
 
-Four short activities modelled on well-known Montessori materials for ages 3 to 5. Each round earns a row of ⭐ and ends with a dancing friend. A wrong tap only makes things wiggle; there are no crosses or buzzers.
+Five short activities modelled on well-known Montessori materials for ages 3 to 5. Each round earns a row of ⭐ and ends with a dancing friend. A wrong tap only makes things wiggle; there are no crosses or buzzers.
 
 | Activity | What she does | Based on |
 | --- | --- | --- |
 | 🔢 **Counting** | Taps each object to count it (each gets its number), then taps the matching numeral | cards and counters |
 | 🔤 **Letters** | Traces a big lowercase letter with a finger; a picture of something that starts with it appears (a 🍎, b 🐻 …) | sandpaper letters |
+| 📖 **Reading** | Taps the letters of a short word left to right to sound it out (each letter has a picture clue for its sound), then sees or picks its picture | phonetic reading with short words (vowels blue, consonants red, as on a movable alphabet) |
 | 🎨 **Colours** | Finds the colour tablet that matches | colour tablets |
 | 🔷 **Shapes** | Drags shapes into their holes (or taps a shape, then its hole) | geometric insets |
 
-Each activity has 3 levels that adjust by themselves: a round with no wrong taps moves up, three or more wrong taps moves down. Counting goes up to 3, then 5, then 10. Colours go from red/yellow/blue to 11 colours, then to shades of one colour. Shapes go from 3 to 5 holes. Letters need more of the letter traced at higher levels.
+Each activity has 3 levels that adjust by themselves: a round with no wrong taps moves up, three or more wrong taps moves down. Reading starts with sounding out a word and seeing its picture, then picking the right picture from three, then picking it from look-alike words (cat / hat / bat) without the clues. Counting goes up to 3, then 5, then 10. Colours go from red/yellow/blue to 11 colours, then to shades of one colour. Shapes go from 3 to 5 holes. Letters need more of the letter traced at higher levels.
 
 ### 📚 My stories and the grown-ups lock
 
@@ -109,6 +110,24 @@ On 📚 **My stories**, press 🔒, answer the sum, then:
 * **📂 Restore a backup** reads such a file. It adds anything that is missing and updates anything the backup has a newer copy of. It never replaces newer work and never deletes anything, so restoring the same file twice is harmless. It also accepts a single Studio `.storybox.json` file (added as a new Studio story).
 
 Puppet movies recorded with an earlier version are videos and are not in the backup; save each one with its **⬇ Save** button.
+
+### Automatic backup (Chrome or Edge on a computer)
+
+Get Chrome at [google.com/chrome](https://www.google.com/chrome/). Microsoft Edge comes with Windows.
+
+Set it up once and the backup file keeps itself up to date:
+
+1. On the shelf's grown-up tools (or in the Studio under **Project**), press **🔄 Turn on automatic backup…**.
+2. In the save window, choose **iCloud Drive** (Mac: in the sidebar; Windows: the iCloud Drive folder from iCloud for Windows) and keep the name `StoryBox backup.json`.
+3. That's it. About 15 seconds after anything changes, the app rewrites that file, and iCloud uploads it. The shelf shows when it last saved. If nothing changed, nothing is written.
+
+Things to know:
+
+* **After the app is reopened, Chrome may ask again.** If it does, automatic backup pauses: a small orange dot appears on the home screen's 🔒, and the Studio (and the shelf's grown-up tools) shows **▶ Resume**. Press it; it catches up straight away. If Chrome's question offers **"Allow on every visit"**, choose it so you aren't asked again. Nothing is lost while paused; it just waits.
+* It always writes the whole backup in one go (to a temporary file that replaces the old one), so the file is never half-written. It is the same file as **💾 Back up everything** makes, so **📂 Restore a backup** reads it.
+* If the file is moved or deleted, or the app ever has trouble reopening it, it stops and asks you to **Choose file…** again.
+* Changes from the last few seconds before the app is closed are written the next time it is opened.
+* **Turn off** stops it (the file stays where it is). Safari and Firefox don't support this; use **💾 Back up everything** there.
 
 **Putting the backup in iCloud Drive:**
 
@@ -160,11 +179,11 @@ A deployed copy is worth having: it can be **added to an iPad/iPhone/Android hom
 
 Every push to `main` is built by `.github/workflows/deploy.yml`, which always attaches two downloads to the run (Actions tab → the run → *Artifacts*): **StoryBox-single-file** (the double-click file above) and **storybox-site** (the full website as a ZIP, for any static host).
 
-**GitHub Pages (optional; free for public repos, paid plan needed for private ones):**
+**GitHub Pages (free for public repositories):**
 
-1. In the repository: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-2. **Settings → Secrets and variables → Actions → Variables → New repository variable**: name `DEPLOY_PAGES`, value `true`.
-3. Push to `main` (or run the workflow by hand from the *Actions* tab). Your app appears at `https://<your-user>.github.io/<repo>/`.
+1. The repository is public, and **Settings → Pages → Build and deployment → Source** is **GitHub Actions**.
+2. Every push to `main` then publishes the app at `https://<your-user>.github.io/<repo>/` (for this one, `https://larryjmorgan.github.io/shop-class-hello/`). You can also run the workflow by hand from the *Actions* tab.
+3. A private repository needs a paid plan for Pages; there, also add the repository variable `DEPLOY_PAGES` = `true`.
 
 **Anywhere else:** run `npm run build` and upload the `dist/` folder to any static host (Netlify Drop, Cloudflare Pages, a school/web server). The build uses relative links, so it works at a site root or in a sub-folder.
 
@@ -175,9 +194,10 @@ Stories (and any ElevenLabs audio) stay on the device that made them (they are n
 ## Known limitations
 
 * Real-time export (above); no faster-than-real-time render.
+* Automatic backup was tested in Chromium with a browser-managed stand-in for the chosen file (the test can't click the real save window), including closing and reopening the browser. It was not tested writing into a real iCloud Drive folder or from the double-click file, so check once that `StoryBox backup.json` shows a recent time in iCloud Drive.
 * The art is built in (9 characters plus her painted ones, 16 props, 8 scenes, 5 music loops, 8 sound effects) and Story time has 6 scenarios. There is no image/video import yet. New scenarios are plain data in `src/kid/scenarios.ts`.
 * Painted friends are kept in this browser on this device (they travel with **Back up everything**). A single Studio story saved with *Project → Save file…* and opened on another device shows the plain character in place of a painted one.
-* The Learn activities are modelled on common Montessori materials, but a Montessori teacher has not reviewed them. Letters show a picture but don't say the letter's sound (there are no voices in the app), so a grown-up saying the sound helps. Tracing checks how much of the letter is covered, not the stroke order.
+* The Learn activities are modelled on common Montessori materials, but a Montessori teacher has not reviewed them. The app has no voices, so it never says a letter's sound: **Letters and Reading work best with a grown-up saying the sounds with her** (tap a letter, say its sound, then run them together: "c… a… t… cat"). The picture clues help her remember the sounds on her own. Tracing checks how much of the letter is covered, not the stroke order. No app can promise to teach a 3-year-old to read; this is practice to do together.
 * Characters are single pieces with a flapping mouth and blinking; there is no limb rigging or frame-by-frame drawing.
 * The kids' screens (stories, painting, Learn, puppet play) were tested in Chrome with a mouse and simulated touch, **not** with a real toddler or a real tablet. I can't listen to audio, so how the music and sound effects actually sound is untested by ear.
 * The ElevenLabs integration was tested against a mocked endpoint, **not** the live service, so the first real generation is worth a quick check.
@@ -196,6 +216,7 @@ src/audio.ts        synthesised music/SFX, mixer with ducking, ElevenLabs
 src/exporter.ts     canvas + audio -> MediaRecorder
 src/store.ts        app state, undo/redo, autosave, editing actions, story switching
 src/backup.ts       "Back up everything" / "Restore a backup" (one file for all stories, painted friends, Learn)
+src/autoBackup.ts   automatic backup: keeps a chosen file (e.g. in iCloud Drive) up to date
 src/library.ts      the "My stories" storage (index + one key per story), audio bookkeeping
 src/thumb.ts        library picture thumbnails
 src/transport.ts    play / pause / seek

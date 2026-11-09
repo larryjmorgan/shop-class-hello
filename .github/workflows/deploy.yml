@@ -4,9 +4,9 @@
 # 1) ALWAYS: attaches the finished website as a downloadable ZIP ("storybox-site") to the run.
 #    Open the repo's Actions tab -> the latest run -> Artifacts. Unzip it and upload the folder to any
 #    static web host (Netlify, Cloudflare Pages, ...). Works for private repositories; nothing to install.
-# 2) OPTIONAL: also publish to GitHub Pages. Needs a public repo (or a paid GitHub plan for private ones).
-#    Turn it on with: Settings -> Pages -> Source: "GitHub Actions", then
-#    Settings -> Secrets and variables -> Actions -> Variables -> New variable  DEPLOY_PAGES = true
+# 2) GitHub Pages (the web address for iPads): publishes automatically when the repository is PUBLIC and
+#    Settings -> Pages -> Source is "GitHub Actions". (A private repo on a paid plan can switch it on with
+#    Settings -> Secrets and variables -> Actions -> Variables -> DEPLOY_PAGES = true.)
 name: Build and publish
 
 on:
@@ -53,17 +53,17 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # (2) GitHub Pages, only when switched on
+      # (2) GitHub Pages: public repo, or switched on with DEPLOY_PAGES
       - uses: actions/configure-pages@v5
-        if: ${{ vars.DEPLOY_PAGES == 'true' }}
+        if: ${{ vars.DEPLOY_PAGES == 'true' || github.event.repository.private == false }}
       - uses: actions/upload-pages-artifact@v3
-        if: ${{ vars.DEPLOY_PAGES == 'true' }}
+        if: ${{ vars.DEPLOY_PAGES == 'true' || github.event.repository.private == false }}
         with:
           path: dist
 
   deploy-pages:
     needs: build
-    if: ${{ vars.DEPLOY_PAGES == 'true' }}
+    if: ${{ vars.DEPLOY_PAGES == 'true' || github.event.repository.private == false }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
