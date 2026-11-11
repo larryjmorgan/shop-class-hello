@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BreakScreen, BreakSoon, useBreakTimer } from '../kid/BreakTime';
 import { Home } from '../kid/Home';
 import { Learn } from '../kid/Learn';
 import { ParentGate } from '../kid/ParentGate';
@@ -20,6 +21,7 @@ export function Root() {
   const [mode, setMode] = useState<Mode>(() => (location.hash === '#studio' ? 'studio' : 'home'));
   const [editing, setEditing] = useState<string | undefined>(undefined);
   const [gate, setGate] = useState(false);
+  const breakTime = useBreakTimer(mode !== 'studio');
 
   useEffect(() => {
     if (mode !== 'studio') pause(); // never leave editor playback running behind the child screens
@@ -43,6 +45,8 @@ export function Root() {
       {mode === 'stories' && <StoriesShelf onHome={() => setMode('home')} onNew={() => setMode('home')} onEdit={(id) => make(id)} onOpenStudio={openInStudio} />}
       {mode === 'paint' && <Painter onBack={() => setMode('home')} />}
       {mode === 'learn' && <Learn onHome={() => setMode('home')} />}
+      {breakTime.state === 'soon' && <BreakSoon />}
+      {breakTime.state === 'rest' && <BreakScreen onChanged={breakTime.recheck} />}
       {gate && <ParentGate why="The Studio is for grown-ups." onClose={() => setGate(false)} onPass={() => { setGate(false); setMode('studio'); }} />}
     </>
   );
