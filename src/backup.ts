@@ -12,6 +12,7 @@ import { flushSave, reloadIfOpen } from './store';
 import { allLevels, mergeLevels } from './kid/learn';
 import { getOwnStory, listOwnStories, normalizeOwnStory, saveOwnStory, type OwnStory } from './kid/own';
 import { getPainted, listPainted, normalizePainted, savePainted, type PaintedFriend } from './kid/painted';
+import { getChildName, getTimeLimit, setChildName, setTimeLimit } from './kid/kidSettings';
 import { earnedStickerIds, mergeStickers } from './kid/stickers';
 import { getKidStory, listKidStories, normalizeKidStory, saveKidStory, type KidStory } from './kid/story';
 
@@ -28,6 +29,9 @@ export interface BackupFile {
   learnLevels: Record<string, number>;
   /** stickers she earned in Learn (for painting) */
   stickers?: string[];
+  /** her first name (for Learn) and the play-time limit, if set */
+  childName?: string;
+  timeLimit?: number;
   studio: StudioEntry[];
   blobs: Record<string, string>; // audio used by Studio stories: key -> data URL
 }
@@ -75,6 +79,8 @@ export async function makeBackup(io: BlobIO = defaultIO, now = Date.now()): Prom
     painted: listPainted(),
     learnLevels: allLevels() as Record<string, number>,
     stickers: earnedStickerIds(),
+    childName: getChildName() || undefined,
+    timeLimit: getTimeLimit() || undefined,
     studio,
     blobs,
   };
@@ -125,6 +131,9 @@ export async function restoreBackup(file: File, io: BlobIO = defaultIO): Promise
   }
   mergeLevels(j.learnLevels);
   mergeStickers(j.stickers);
+  // settings: only fill in what this device doesn't have yet
+  if (typeof j.childName === 'string' && !getChildName()) setChildName(j.childName);
+  if (typeof j.timeLimit === 'number' && !getTimeLimit()) setTimeLimit(j.timeLimit);
 
   const blobs = j.blobs && typeof j.blobs === 'object' ? j.blobs : {};
   const here = listStories();

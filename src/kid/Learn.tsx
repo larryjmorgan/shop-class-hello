@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CHARACTERS } from '../assets';
 import { resumeAudio } from '../audio';
 import {
-  ACTIVITIES, ROUND, TRACE, colourTask, countTask, getLevel, isVowel, letterTask, matchMisses, matchTask, readingTask, recordRound, shapeById, shapeTask, type Activity, type ColourTask,
+  ACTIVITIES, NAME_PIC, ROUND, TRACE, colourTask, countTask, getLevel, isVowel, letterTask, matchMisses, matchTask, nameTask, patternTask, readingTask, recordRound,
+  shapeById, shapeTask, sizeTask, type Activity, type ColourTask,
 } from './learn';
+import { getChildName, nameLetters } from './kidSettings';
 import { earnSticker, type STICKERS_ALL } from './stickers';
 import { TheaterAudio } from './theaterAudio';
 
@@ -24,6 +26,7 @@ function useShake(): [string | null, (k: string) => void] {
 /** 🧮 The Learn corner: four activities. */
 export function Learn({ onHome }: { onHome: () => void }) {
   const [activity, setActivity] = useState<Activity | null>(null);
+  const name = useMemo(() => getChildName(), [activity]); // re-read when coming back to the hub
   const audioRef = useRef<TheaterAudio | null>(null);
   const sound: Sound = (id, v = 0.6) => { void resumeAudio(); void (audioRef.current ??= new TheaterAudio()).sfx(id, v); };
   useEffect(() => () => audioRef.current?.dispose(), []);
@@ -35,7 +38,13 @@ export function Learn({ onHome }: { onHome: () => void }) {
         <button className="kbtn round" onClick={onHome} aria-label="Home">🏠</button>
         <span className="maker-step" aria-hidden="true">🧮</span>
       </div>
-      <div className="learn-hub">
+      <div className={`learn-hub n${name ? 9 : 8}`}>
+        {name && (
+          <button className="learn-tile myname" onClick={() => { setActivity('myname'); sound('pop', 0.4); }} aria-label="My name">
+            <span className="lt-word name">{[...name].slice(0, 5).map((c, k) => <b key={k} className={isVowel(c) ? 'v' : ''}>{c}</b>)}</span>
+            <span className="tile-name inflow">My name</span>
+          </button>
+        )}
         <button className="learn-tile letters" onClick={() => { setActivity('letters'); sound('pop', 0.4); }} aria-label="Letters">
           <span className="lt-big letter">a</span><span className="lt-row">👆</span>
           <span className="tile-name inflow">Letters</span>
@@ -61,6 +70,14 @@ export function Learn({ onHome }: { onHome: () => void }) {
         <button className="learn-tile match" onClick={() => { setActivity('match'); sound('pop', 0.4); }} aria-label="Matching">
           <span className="lt-cards"><i>🐶</i><i className="back" /><i>🐶</i></span>
           <span className="tile-name inflow">Matching</span>
+        </button>
+        <button className="learn-tile sizes" onClick={() => { setActivity('sizes'); sound('pop', 0.4); }} aria-label="Big to small">
+          <span className="lt-sizes" aria-hidden="true"><i style={{ width: '12vmin', height: '12vmin' }} /><i style={{ width: '8.5vmin', height: '8.5vmin' }} /><i style={{ width: '5vmin', height: '5vmin' }} /></span>
+          <span className="tile-name inflow">Big to small</span>
+        </button>
+        <button className="learn-tile patterns" onClick={() => { setActivity('patterns'); sound('pop', 0.4); }} aria-label="What comes next?">
+          <span className="lt-row" aria-hidden="true">🍎🍌🍎🍌<b className="lt-q">?</b></span>
+          <span className="tile-name inflow">What comes next?</span>
         </button>
       </div>
     </div>
@@ -118,6 +135,12 @@ function Round({ activity, sound, onBack }: { activity: Activity; sound: Sound; 
         <LetterTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
       ) : activity === 'reading' ? (
         <ReadingTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
+      ) : activity === 'myname' ? (
+        <NameTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
+      ) : activity === 'sizes' ? (
+        <SizeTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
+      ) : activity === 'patterns' ? (
+        <PatternTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
       ) : activity === 'match' ? (
         <MatchTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
       ) : activity === 'colours' ? (
@@ -134,6 +157,8 @@ let lastCount: number | undefined;
 let lastColour: string | undefined;
 const recentLetters: string[] = [];
 const recentWords: string[] = [];
+/** Keep the last few picks so the next task is a different one. (Done after choosing, never while choosing.) */
+const remember = (list: string[], v: string) => { if (list[list.length - 1] !== v) list.push(v); if (list.length > 8) list.shift(); };
 
 /** 🃏 Cards lie face down; turn two to find a pair. Pairs stay face up; a wrong pair turns back over. */
 function MatchTaskView({ level, sound, onSolved }: TaskProps) {
@@ -191,12 +216,8 @@ function MatchTaskView({ level, sound, onSolved }: TaskProps) {
  * Level 3: pick it from look-alike words (cat / hat / bat), without the clues.
  */
 function ReadingTaskView({ level, sound, onSolved }: TaskProps) {
-  const task = useMemo(() => {
-    const t = readingTask(level, Math.random, recentWords);
-    recentWords.push(t.word);
-    if (recentWords.length > 8) recentWords.shift();
-    return t;
-  }, [level]);
+  const task = useMemo(() => readingTask(level, Math.random, recentWords, getChildName()), [level]);
+  useEffect(() => remember(recentWords, task.word), [task]);
   const letters = [...task.word];
   const [lit, setLit] = useState(0); // letters sounded out so far
   const [right, setRight] = useState<string | null>(null);
@@ -227,7 +248,7 @@ function ReadingTaskView({ level, sound, onSolved }: TaskProps) {
 
   return (
     <div className="learn-task reading-task">
-      <div className={`word-row${read ? ' blended' : ''}`}>
+      <div className={`word-row${read ? ' blended' : ''}${letters.length > 3 ? ' long' : ''}`} style={{ '--n': letters.length } as React.CSSProperties}>
         {letters.map((l, k) => (
           <button
             key={k} onClick={() => tapLetter(k)} aria-label={`Letter ${l}`}
@@ -258,7 +279,8 @@ function ReadingTaskView({ level, sound, onSolved }: TaskProps) {
 
 /** 🔢 Tap each thing to count it (each gets its number), then tap the matching numeral. */
 function CountTaskView({ level, sound, onSolved }: TaskProps) {
-  const task = useMemo(() => { const t = countTask(level, Math.random, lastCount); lastCount = t.n; return t; }, [level]);
+  const task = useMemo(() => countTask(level, Math.random, lastCount), [level]);
+  useEffect(() => { lastCount = task.n; }, [task]);
   const [order, setOrder] = useState<number[]>([]); // order[k] = which count number item k got (0 = not yet)
   const [right, setRight] = useState<number | null>(null);
   const [shaking, shake] = useShake();
@@ -303,7 +325,8 @@ function CountTaskView({ level, sound, onSolved }: TaskProps) {
 
 /** 🔤 Trace the letter with a finger, like a sandpaper letter. When it is traced, its picture pops up. */
 function LetterTaskView({ level, sound, onSolved }: TaskProps) {
-  const L = useMemo(() => { const t = letterTask(Math.random, recentLetters); recentLetters.push(t.l); if (recentLetters.length > 8) recentLetters.shift(); return t; }, []);
+  const L = useMemo(() => letterTask(Math.random, recentLetters, nameLetters()), []);
+  useEffect(() => remember(recentLetters, L.l), [L]);
   const S = 400;
   const { cover, brush } = TRACE[level - 1] ?? TRACE[0];
   const viewRef = useRef<HTMLCanvasElement>(null);
@@ -419,7 +442,8 @@ function LetterTaskView({ level, sound, onSolved }: TaskProps) {
 
 /** 🎨 Find the tablet that is the same colour. */
 function ColourTaskView({ level, sound, onSolved }: TaskProps) {
-  const task: ColourTask = useMemo(() => { const t = colourTask(level, Math.random, lastColour); lastColour = t.target.id; return t; }, [level]);
+  const task: ColourTask = useMemo(() => colourTask(level, Math.random, lastColour), [level]);
+  useEffect(() => { lastColour = task.target.id; }, [task]);
   const [right, setRight] = useState(false);
   const [shaking, shake] = useShake();
   const misses = useRef(0);
@@ -525,6 +549,113 @@ function ShapeTaskView({ level, sound, onSolved }: TaskProps) {
             onPointerDown={down(id)} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { setDrag(null); start.current = null; }}
             aria-label={shapeById(id).label} aria-pressed={selected === id}
           >{shapeSvg(id, shapeById(id).color)}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** 👧 Her name: tap its letters in order. Levels 1-2 show faint letters in the slots; level 3 doesn't. */
+function NameTaskView({ level, sound, onSolved }: TaskProps) {
+  const name = getChildName();
+  const task = useMemo(() => nameTask(level, name, Math.random), [level, name]);
+  const [placed, setPlaced] = useState<number[]>([]); // tile ids, in slot order
+  const [shaking, shake] = useShake();
+  const [done, setDone] = useState(false);
+  const misses = useRef(0);
+  const n = placed.length;
+
+  const tap = (t: { id: number; ch: string }) => {
+    if (done || placed.includes(t.id)) return;
+    if (t.ch.toLowerCase() === task.letters[n].toLowerCase()) {
+      const p = [...placed, t.id];
+      setPlaced(p);
+      sound(p.length === task.letters.length ? 'twinkle' : 'pop', 0.5);
+      if (p.length === task.letters.length) { setDone(true); setTimeout(() => sound('yay', 0.7), 300); setTimeout(() => onSolved(misses.current), 2200); }
+    } else { misses.current++; shake(`t${t.id}`); sound('boing', 0.3); }
+  };
+  if (!name) return <div className="learn-task"><span className="huge-emoji" aria-label="Ask a grown-up to add your name">🔒</span></div>;
+  return (
+    <div className="learn-task name-task">
+      <div className={`name-slots${done ? ' blended' : ''}`} style={{ '--n': task.letters.length } as React.CSSProperties}>
+        {task.letters.map((ch, k) => (
+          <span key={k} className={`name-slot${k < n ? ' filled' : ''}${k === n && !done ? ' next' : ''}${isVowel(ch) ? ' vowel' : ' consonant'}`} aria-label={k < n ? `Slot ${k + 1}: ${ch}` : `Slot ${k + 1}: empty`}>
+            {k < n ? ch : task.faint ? <span className="faint">{ch}</span> : ''}
+          </span>
+        ))}
+        {done && <span className="name-me" aria-label="That's you!">{NAME_PIC}</span>}
+      </div>
+      <div className="name-tiles">
+        {task.tiles.map((t) => (
+          <button
+            key={t.id} className={`name-tile${placed.includes(t.id) ? ' used' : ''}${shaking === `t${t.id}` ? ' shake' : ''}${isVowel(t.ch) ? ' vowel' : ' consonant'}`}
+            disabled={placed.includes(t.id)} onClick={() => tap(t)} aria-label={`Letter ${t.ch}`}
+          >{t.ch}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** 📏 Tap the blocks from biggest to smallest; each one joins the staircase. */
+function SizeTaskView({ level, sound, onSolved }: TaskProps) {
+  const sizes = useMemo(() => sizeTask(level), [level]);
+  const order = useMemo(() => [...sizes].sort((a, b) => b - a), [sizes]);
+  const [line, setLine] = useState<number[]>([]); // sizes placed so far
+  const [shaking, shake] = useShake();
+  const misses = useRef(0);
+  const unit = level >= 3 ? 150 : 170; // px for the biggest block
+  const tap = (s: number, k: number) => {
+    if (line.includes(s)) return;
+    if (s === order[line.length]) {
+      const l = [...line, s];
+      setLine(l);
+      sound(l.length === order.length ? 'twinkle' : 'pop', 0.5);
+      if (l.length === order.length) setTimeout(() => onSolved(misses.current), 1400);
+    } else { misses.current++; shake(`b${k}`); sound('boing', 0.3); }
+  };
+  return (
+    <div className="learn-task size-task">
+      <div className="size-line" aria-label="Biggest to smallest">
+        {order.map((s, k) => (
+          <span key={k} className={`size-spot${k < line.length ? ' filled' : ''}`} style={{ width: unit * s, height: unit * s }}>
+            {k < line.length && <i className="block" style={{ width: unit * s, height: unit * s }} />}
+          </span>
+        ))}
+      </div>
+      <div className="size-pile">
+        {sizes.map((s, k) => (
+          <button
+            key={k} className={`size-block${line.includes(s) ? ' used' : ''}${shaking === `b${k}` ? ' shake' : ''}${!line.includes(s) && s === order[line.length] ? ' hint' : ''}`}
+            style={{ width: unit * s, height: unit * s }} disabled={line.includes(s)} onClick={() => tap(s, k)}
+            aria-label={`Block ${Math.round(s * 100)}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** 🔁 What comes next? Pick the picture that fills the gap. */
+function PatternTaskView({ level, sound, onSolved }: TaskProps) {
+  const task = useMemo(() => patternTask(level), [level]);
+  const [right, setRight] = useState(false);
+  const [shaking, shake] = useShake();
+  const misses = useRef(0);
+  const choose = (p: string) => {
+    if (right) return;
+    if (p === task.answer) { setRight(true); sound('yay', 0.6); setTimeout(() => onSolved(misses.current), 1300); }
+    else { misses.current++; shake(p); sound('boing', 0.3); }
+  };
+  return (
+    <div className="learn-task pattern-task">
+      <div className="pattern-row" style={{ '--n': task.seq.length + 1 } as React.CSSProperties}>
+        {task.seq.map((p, k) => <span key={k} className="pattern-cell">{p}</span>)}
+        <span className={`pattern-cell gap${right ? ' filled' : ''}`} aria-label={right ? `Next: ${task.answer}` : 'What comes next?'}>{right ? task.answer : '?'}</span>
+      </div>
+      <div className="pic-choices show">
+        {task.choices.map((c) => (
+          <button key={c} className={`pic-choice${shaking === c ? ' shake' : ''}${right && c === task.answer ? ' right' : ''}`} onClick={() => choose(c)} aria-label={`Choice ${c}`}>{c}</button>
         ))}
       </div>
     </div>

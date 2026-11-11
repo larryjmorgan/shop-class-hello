@@ -4,7 +4,7 @@
 // letter by letter and matching them to pictures. No failing: a wrong tap just wiggles. Each activity has 3 levels
 // that adjust by themselves.
 
-export type Activity = 'count' | 'letters' | 'reading' | 'colours' | 'shapes' | 'match';
+export type Activity = 'count' | 'letters' | 'reading' | 'colours' | 'shapes' | 'match' | 'sizes' | 'patterns' | 'myname';
 export const ACTIVITIES: { id: Activity; icon: string; label: string }[] = [
   { id: 'count', icon: '🔢', label: 'Counting' },
   { id: 'letters', icon: '🔤', label: 'Letters' },
@@ -12,9 +12,12 @@ export const ACTIVITIES: { id: Activity; icon: string; label: string }[] = [
   { id: 'colours', icon: '🎨', label: 'Colours' },
   { id: 'shapes', icon: '🔷', label: 'Shapes' },
   { id: 'match', icon: '🃏', label: 'Matching' },
+  { id: 'sizes', icon: '📏', label: 'Big to small' },
+  { id: 'patterns', icon: '🔁', label: 'What comes next?' },
+  { id: 'myname', icon: '👧', label: 'My name' },
 ];
 /** Tasks in one round (then a little party). */
-export const ROUND: Record<Activity, number> = { count: 5, letters: 4, reading: 4, colours: 6, shapes: 3, match: 3 };
+export const ROUND: Record<Activity, number> = { count: 5, letters: 4, reading: 4, colours: 6, shapes: 3, match: 3, sizes: 4, patterns: 5, myname: 3 };
 export const MAX_LEVEL = 3;
 
 export type Rng = () => number;
@@ -94,7 +97,10 @@ export const LETTERS: { l: string; pic: string; word: string }[] = [
 ];
 /** How much of the letter must be traced, and how wide her finger paints, per level. */
 export const TRACE = [{ cover: 0.55, brush: 34 }, { cover: 0.65, brush: 28 }, { cover: 0.75, brush: 24 }];
-export function letterTask(rng: Rng = Math.random, avoid: string[] = []) {
+/** `favourites`: the letters of her name, offered more often (about 2 tasks in 5). */
+export function letterTask(rng: Rng = Math.random, avoid: string[] = [], favourites: string[] = []) {
+  const fav = LETTERS.filter((x) => favourites.includes(x.l) && !avoid.includes(x.l));
+  if (fav.length && rng() < 0.4) return pick(fav, rng);
   const pool = LETTERS.filter((x) => !avoid.includes(x.l));
   return pick(pool.length ? pool : LETTERS, rng);
 }
@@ -181,17 +187,20 @@ export interface ReadingTask {
   cueMode: 'always' | 'after' | 'never';
 }
 const similar = (a: string, b: string) => (a.slice(1) === b.slice(1) ? 3 : 0) + (a[0] === b[0] ? 2 : 0) + (a[2] === b[2] ? 1 : 0);
-export function readingTask(level: number, rng: Rng = Math.random, avoid: string[] = []): ReadingTask {
+export const NAME_PIC = '👧';
+/** `name`: her first name, which comes up now and then as a word to read (its picture is 👧, "that's you!"). */
+export function readingTask(level: number, rng: Rng = Math.random, avoid: string[] = [], name = ''): ReadingTask {
   const pool = WORDS.filter((w) => !avoid.includes(w.word));
-  const t = pick(pool.length ? pool : WORDS, rng);
-  const cues = [...t.word].map((l) => letterCue(l, t.pic));
+  const useName = !!name && !avoid.includes(name) && rng() < 0.25;
+  const t = useName ? { word: name, pic: NAME_PIC } : pick(pool.length ? pool : WORDS, rng);
+  const cues = [...t.word].map((l) => letterCue(l.toLowerCase(), t.pic));
   if (level <= 1) return { ...t, cues, choices: [], cueMode: 'always' };
   const others = WORDS.filter((w) => w.word !== t.word);
   // level 3: look-alike words (cat / hat / bat), so every letter matters
   const ranked = level >= 3 ? shuffle(others, rng).sort((a, b) => similar(t.word, b.word) - similar(t.word, a.word)) : shuffle(others, rng);
   return { ...t, cues, choices: shuffle([t, ...ranked.slice(0, 2)], rng), cueMode: level >= 3 ? 'never' : 'after' };
 }
-export const isVowel = (l: string) => 'aeiou'.includes(l);
+export const isVowel = (l: string) => 'aeiou'.includes(l.toLowerCase());
 
 // ---------- matching (memory pairs) ----------
 export const MATCH_PICS = ['🐶', '🐱', '🐰', '🐻', '🦁', '🐸', '🐵', '🐷', '🍎', '🍌', '🍓', '🍉', '🚗', '🚀', '⭐', '🌈'];
@@ -204,3 +213,36 @@ export function matchTask(level: number, rng: Rng = Math.random): string[] {
 }
 /** Turning cards that don't match is part of the game; only count misses beyond one per pair. */
 export const matchMisses = (mismatches: number, pairs: number) => Math.max(0, mismatches - pairs);
+
+// ---------- my name ----------
+export interface NameTask { letters: string[]; tiles: { id: number; ch: string }[]; faint: boolean }
+const NAME_EXTRA = [2, 4, 4];
+/** Her name as empty slots; she taps its letters in order from a pile that has a few other letters too. */
+export function nameTask(level: number, name: string, rng: Rng = Math.random): NameTask {
+  const letters = [...name];
+  const inName = new Set(name.toLowerCase());
+  const others = shuffle([...'abcdefghijklmnopqrstuvwxyz'].filter((c) => !inName.has(c)), rng).slice(0, NAME_EXTRA[level - 1] ?? 2);
+  const tiles = shuffle([...letters.map((ch, id) => ({ id, ch })), ...others.map((ch, k) => ({ id: 100 + k, ch }))], rng);
+  return { letters, tiles, faint: level < 3 }; // level 3: no faint letters in the slots to copy from
+}
+
+// ---------- big to small (like the pink tower) ----------
+export const SIZE_SETS = [[1, 0.66, 0.4], [1, 0.78, 0.56, 0.36], [1, 0.84, 0.68, 0.52, 0.38]];
+/** Block sizes (1 = biggest), shuffled. She taps them from biggest to smallest. */
+export const sizeTask = (level: number, rng: Rng = Math.random): number[] => shuffle(SIZE_SETS[level - 1] ?? SIZE_SETS[0], rng);
+
+// ---------- what comes next? (patterns) ----------
+export const PATTERN_PICS = ['🍎', '🍌', '🍇', '⭐', '❤️', '🌙', '🐶', '🐱', '🚗', '🌸', '🔵', '🟡'];
+const PATTERN_UNITS = [['AB'], ['AAB', 'ABB', 'ABC'], ['AABB', 'ABCC', 'ABC']];
+export interface PatternTask { seq: string[]; answer: string; choices: string[]; unit: string }
+export function patternTask(level: number, rng: Rng = Math.random): PatternTask {
+  const unit = pick(PATTERN_UNITS[level - 1] ?? PATTERN_UNITS[0], rng);
+  const kinds = [...new Set(unit)];
+  const pics = shuffle(PATTERN_PICS, rng).slice(0, kinds.length + 1);
+  const picFor = (c: string) => pics[kinds.indexOf(c)];
+  const len = Math.max(6, unit.length * 2 + 1); // at least two full repeats before the gap
+  const full = Array.from({ length: len }, (_, i) => picFor(unit[i % unit.length]));
+  const answer = full[len - 1];
+  const others = shuffle([...new Set(full.filter((p) => p !== answer)), pics[kinds.length]], rng).slice(0, 2);
+  return { seq: full.slice(0, len - 1), answer, choices: shuffle([answer, ...others], rng), unit };
+}

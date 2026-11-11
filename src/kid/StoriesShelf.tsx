@@ -4,6 +4,7 @@ import { backupFileName, describeRestore, makeBackup, restoreBackup } from '../b
 import { fmtTime, type Project } from '../model';
 import { download, safeName } from '../projectFile';
 import { AutoBackupControl } from '../ui/AutoBackupControl';
+import { KidSettings } from './KidSettings';
 import { ExportDialog } from '../ui/Dialogs';
 import { listMovies, loadMovie, removeMovie, type MovieMeta } from './movies';
 import { compileOwnStory, deleteOwnStory, listOwnStories, ownTitle } from './own';
@@ -104,6 +105,7 @@ export function StoriesShelf({ onHome, onNew, onEdit, onOpenStudio }: { onHome: 
           <input ref={restoreRef} type="file" accept=".json,application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void restore(f); }} />
           {note && <span className="backup-note" role="status">{note}</span>}
           <div className="auto-backup-line"><AutoBackupControl /></div>
+          <KidSettings />
         </div>
       )}
 

@@ -134,3 +134,57 @@ describe('matching', () => {
     expect(matchMisses(5, 3)).toBe(2);
   });
 });
+
+import { NAME_PIC, PATTERN_PICS, SIZE_SETS, nameTask, patternTask, sizeTask } from './learn';
+describe('her name, sizes and patterns', () => {
+  it('letters of her name come up more often', () => {
+    const rng = seq(21);
+    let hits = 0;
+    for (let i = 0; i < 400; i++) if (['e', 'm', 'a'].includes(letterTask(rng, [], ['e', 'm', 'a']).l)) hits++;
+    expect(hits / 400).toBeGreaterThan(0.35); // ~40% favourites + 3/26 of the rest
+  });
+  it('her name appears as a reading word with the 👧 picture', () => {
+    const rng = seq(4);
+    const seen = Array.from({ length: 200 }, () => readingTask(2, rng, [], 'Emma')).filter((t) => t.word === 'Emma');
+    expect(seen.length).toBeGreaterThan(20);
+    for (const t of seen) {
+      expect(t.pic).toBe(NAME_PIC);
+      expect(t.cues).toHaveLength(4);
+      expect(t.choices.filter((c) => c.word === 'Emma')).toHaveLength(1);
+    }
+    expect(readingTask(2, rng, ['Emma'], 'Emma').word).not.toBe('Emma');
+  });
+  it('my name: every letter of the name plus extra letters not in it', () => {
+    for (let level = 1; level <= 3; level++) {
+      const t = nameTask(level, 'Anna', seq(level));
+      expect(t.letters).toEqual(['A', 'n', 'n', 'a']);
+      expect(t.tiles).toHaveLength(4 + (level === 1 ? 2 : 4));
+      const extra = t.tiles.filter((x) => x.id >= 100);
+      expect(extra.every((x) => !'an'.includes(x.ch))).toBe(true);
+      expect(t.faint).toBe(level < 3);
+    }
+  });
+  it('sizes: 3, 4 then 5 distinct blocks', () => {
+    for (let level = 1; level <= 3; level++) {
+      const s = sizeTask(level, seq(level));
+      expect([...s].sort()).toEqual([...SIZE_SETS[level - 1]].sort());
+      expect(new Set(s).size).toBe(s.length);
+    }
+  });
+  it('patterns: the answer continues the pattern, shown at least twice, among distinct choices', () => {
+    const rng = seq(8);
+    for (let level = 1; level <= 3; level++) {
+      for (let i = 0; i < 60; i++) {
+        const t = patternTask(level, rng);
+        const full = [...t.seq, t.answer];
+        const u = t.unit.length;
+        expect(full.length).toBeGreaterThanOrEqual(u * 2 + 1);
+        for (let k = u; k < full.length; k++) expect(full[k]).toBe(full[k - u]); // it repeats
+        expect(t.choices).toContain(t.answer);
+        expect(new Set(t.choices).size).toBe(3);
+        expect(t.choices.every((c) => PATTERN_PICS.includes(c))).toBe(true);
+        if (level === 1) expect(t.unit).toBe('AB');
+      }
+    }
+  });
+});

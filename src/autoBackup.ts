@@ -15,7 +15,7 @@ const LOADING_KEY = 'storybox.autobackup.loading';
 const CHECK_EVERY_MS = 15_000;
 /** What goes into a backup (see backup.ts). Settings such as the ElevenLabs key are not watched or saved. */
 const WATCHED = (k: string) =>
-  k === 'storybox.kidstories' || k === 'storybox.ownstories' || k === 'storybox.painted' || k === 'storybox.learn' || k === 'storybox.stickers' ||
+  k === 'storybox.kidstories' || k === 'storybox.ownstories' || k === 'storybox.painted' || k === 'storybox.learn' || k === 'storybox.stickers' || k === 'storybox.childname' || k === 'storybox.timelimit' ||
   k === 'storybox.index' || k.startsWith('storybox.p.');
 
 interface FileHandle {

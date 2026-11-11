@@ -5,7 +5,7 @@ Two things in one app, for making short (up to **3 minutes**) animated movies:
 * **The kids' corner: for a young child.** It opens first, on four big picture tiles. There is nothing to read and no timeline.
   * **📖 Story time**: pick a ready-made story (Birthday Party, Beach Day, Bedtime, Space Trip, Under the Sea, Forest Picnic), pick who is in it, add music and "stickers" to each scene, press ▶.
   * **🖌️ Paint a friend**: paint a character with her fingers, fill it in one tap, paint both sides at once, and decorate it with stickers; the painted friend can then be used in her stories.
-  * **🧮 Learn**: letters, first reading, counting, colours, shapes and a matching game, in the spirit of Montessori materials. Every finished round earns a sticker for Paint a friend.
+  * **🧮 Learn**: letters, first reading, counting, colours, shapes, size order, patterns, a matching game, and (once a grown-up adds her name) a My name game, in the spirit of Montessori materials. Every finished round earns a sticker for Paint a friend.
   * **📚 My stories**: watch again or change.
 * There is **no microphone and no voice recording** anywhere in the app.
 * **🎬 The Studio: for grown-ups.** A full story editor (below). Grown-up tools on the kids' shelf (behind a small sum a toddler can't answer) save a story as a video file, open it in the Studio to fine-tune, or delete it.
@@ -76,7 +76,7 @@ Painted friends appear first in Story time's friend picker (and in the Studio's 
 
 ### 🧮 Learn
 
-Six short activities, five of them modelled on well-known Montessori materials for ages 3 to 5. Each round earns a row of ⭐ and ends with a dancing friend and **a new sticker** for Paint a friend (20 to collect). A wrong tap only makes things wiggle; there are no crosses or buzzers.
+Eight short activities (nine once her name is set), most of them modelled on well-known Montessori materials for ages 3 to 5. Each round earns a row of ⭐ and ends with a dancing friend and **a new sticker** for Paint a friend (20 to collect). A wrong tap only makes things wiggle; there are no crosses or buzzers.
 
 | Activity | What she does | Based on |
 | --- | --- | --- |
@@ -86,8 +86,23 @@ Six short activities, five of them modelled on well-known Montessori materials f
 | 🎨 **Colours** | Finds the colour tablet that matches | colour tablets |
 | 🔷 **Shapes** | Drags shapes into their holes (or taps a shape, then its hole) | geometric insets |
 | 🃏 **Matching** | Turns cards two at a time to find the pairs; pairs stay face up | a memory game (not a Montessori material) |
+| 📏 **Big to small** | Taps blocks from biggest to smallest; each joins a staircase | the pink tower (size order) |
+| 🔁 **What comes next?** | Picks the picture that continues a pattern (🍎🍌🍎🍌❓) | pattern work, early maths |
+| 👧 **My name** | Taps the letters of her name in order into its slots, from a pile with a few other letters | (shown only when a grown-up has added her name) |
 
-Each activity has 3 levels that adjust by themselves: a round with no wrong taps moves up, three or more wrong taps moves down. Reading starts with sounding out a word and seeing its picture, then picking the right picture from three, then picking it from look-alike words (cat / hat / bat) without the clues. Counting goes up to 3, then 5, then 10. Colours go from red/yellow/blue to 11 colours, then to shades of one colour. Shapes go from 3 to 5 holes. Matching goes from 3 to 4 to 6 pairs (turning a wrong pair is part of the game, so only extra wrong turns count). Letters need more of the letter traced at higher levels.
+Each activity has 3 levels that adjust by themselves: a round with no wrong taps moves up, three or more wrong taps moves down. Reading starts with sounding out a word and seeing its picture, then picking the right picture from three, then picking it from look-alike words (cat / hat / bat) without the clues. Counting goes up to 3, then 5, then 10. Colours go from red/yellow/blue to 11 colours, then to shades of one colour. Shapes go from 3 to 5 holes. Matching goes from 3 to 4 to 6 pairs (turning a wrong pair is part of the game, so only extra wrong turns count). Big to small goes from 3 to 5 blocks, closer in size. Patterns go from AB to AAB / ABB / ABC, then AABB / ABCC. My name starts with faint letters in the slots and 2 extra letters, then 4 extra letters, then no faint letters.
+
+**Her name (grown-ups):** on the shelf, press 🔒 and type her first name under **👧 Her first name**. Then the My name game appears (first in Learn), the letters of her name come up more often in Letters, and her name comes up now and then as a word in Reading (its picture is 👧). It stays on this device and is included in backups.
+
+### ⏱ Play time and breaks (grown-ups)
+
+On the shelf, press 🔒 and choose a **⏱ Play time** limit: no limit, 10, 15, 20 or 30 minutes.
+
+* Time counts only while a kids' screen is showing (the Studio doesn't count, and neither does time with the iPad put away).
+* For the last two minutes a little 🌙 shows at the top, so the end isn't a surprise.
+* When time is up, the screen turns to night: a friend falls asleep and waves goodbye, and the kids' screens can't be used. Closing and reopening the app doesn't skip it.
+* A grown-up taps the small 🔒, answers the sum and chooses **➕ 10 more minutes** or **🔄 Start the time again**. **🔄 Reset** on the shelf does the same.
+* After an hour away from the app, the count starts again by itself. Letters need more of the letter traced at higher levels.
 
 ### 📚 My stories and the grown-ups lock
 
@@ -99,7 +114,7 @@ Her stories are on the shelf, newest first. She taps one to watch it, or ✏️ 
 
 On 📚 **My stories**, press 🔒, answer the sum, then:
 
-* **💾 Back up everything** downloads one file, `StoryBox backup YYYY-MM-DD.json`. It holds every kids' story, every Studio story (with its ElevenLabs audio), her painted friends her Learn levels and the stickers she earned. Your ElevenLabs key and settings are **not** included. The same two buttons are in the Studio under **Project**.
+* **💾 Back up everything** downloads one file, `StoryBox backup YYYY-MM-DD.json`. It holds every kids' story, every Studio story (with its ElevenLabs audio), her painted friends, her Learn levels, the stickers she earned, her name and the play-time limit. Your ElevenLabs key is **not** included. The same two buttons are in the Studio under **Project**.
 * **📂 Restore a backup** reads such a file. It adds anything that is missing and updates anything the backup has a newer copy of. It never replaces newer work and never deletes anything, so restoring the same file twice is harmless. It also accepts a single Studio `.storybox.json` file (added as a new Studio story).
 
 Puppet movies recorded with an earlier version are videos and are not in the backup; save each one with its **⬇ Save** button.
@@ -218,7 +233,9 @@ src/ui/             React UI: Root (kid screens vs studio), the Studio's Stage, 
 src/kid/            the kids' screens: scenarios.ts (story content), story.ts (choices -> movie, shelf
                     storage), StoryMaker (Story time), own.ts (older "my own story" stories, play only),
                     painted.ts + Painter (paint a friend), stickers.ts (stickers earned in Learn),
-                    learn.ts + Learn (letters, reading, counting, colours, shapes, matching),
+                    learn.ts + Learn (letters, reading, counting, colours, shapes, matching, sizes,
+                    patterns, my name), kidSettings.ts + KidSettings (her name, play-time limit),
+                    BreakTime (the break screen),
                     StoryPlayer/StoriesShelf/Home,
                     theaterAudio.ts (sounds + music), gate.ts + ParentGate (grown-ups lock), movies.ts (old movies)
 scripts/             inline-build.mjs (single-file build), to-mp4.sh (video converter)
