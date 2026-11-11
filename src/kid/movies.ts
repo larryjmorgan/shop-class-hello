@@ -1,4 +1,4 @@
-// The "My movies" shelf: finished recordings from the Puppet Theater, kept in this browser.
+// Movies recorded by the earlier Puppet Theater version (kept so they still show on the shelf).
 // Video files live in IndexedDB (via db.ts); a small index (title-less, with a poster picture) in localStorage.
 
 import { deleteBlob, getBlob, putBlob } from '../db';

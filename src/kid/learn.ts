@@ -4,16 +4,17 @@
 // letter by letter and matching them to pictures. No failing: a wrong tap just wiggles. Each activity has 3 levels
 // that adjust by themselves.
 
-export type Activity = 'count' | 'letters' | 'reading' | 'colours' | 'shapes';
+export type Activity = 'count' | 'letters' | 'reading' | 'colours' | 'shapes' | 'match';
 export const ACTIVITIES: { id: Activity; icon: string; label: string }[] = [
   { id: 'count', icon: '🔢', label: 'Counting' },
   { id: 'letters', icon: '🔤', label: 'Letters' },
   { id: 'reading', icon: '📖', label: 'Reading' },
   { id: 'colours', icon: '🎨', label: 'Colours' },
   { id: 'shapes', icon: '🔷', label: 'Shapes' },
+  { id: 'match', icon: '🃏', label: 'Matching' },
 ];
 /** Tasks in one round (then a little party). */
-export const ROUND: Record<Activity, number> = { count: 5, letters: 4, reading: 4, colours: 6, shapes: 3 };
+export const ROUND: Record<Activity, number> = { count: 5, letters: 4, reading: 4, colours: 6, shapes: 3, match: 3 };
 export const MAX_LEVEL = 3;
 
 export type Rng = () => number;
@@ -160,7 +161,8 @@ export const WORDS: { word: string; pic: string }[] = [
   { word: 'hen', pic: '🐔' }, { word: 'bug', pic: '🐛' }, { word: 'box', pic: '📦' }, { word: 'van', pic: '🚐' },
   { word: 'pen', pic: '🖊️' }, { word: 'ant', pic: '🐜' }, { word: 'web', pic: '🕸️' }, { word: 'bat', pic: '🦇' },
   { word: 'rat', pic: '🐀' }, { word: 'nut', pic: '🥜' }, { word: 'egg', pic: '🥚' }, { word: 'cup', pic: '☕' },
-  { word: 'log', pic: '🪵' },
+  { word: 'log', pic: '🪵' }, { word: 'map', pic: '🗺️' }, { word: 'tub', pic: '🛁' }, { word: 'pan', pic: '🍳' },
+  { word: 'leg', pic: '🦵' }, { word: 'kid', pic: '🧒' },
 ];
 /** A second picture for a letter's sound, used when the usual one would give the answer away (c is 🐱 but the word is "cat"). */
 const ALT_CUE: Record<string, string> = { c: '🥕', d: '🦆', s: '🧦', p: '🍕', h: '🐴', e: '🐘', x: '🦊' };
@@ -190,3 +192,15 @@ export function readingTask(level: number, rng: Rng = Math.random, avoid: string
   return { ...t, cues, choices: shuffle([t, ...ranked.slice(0, 2)], rng), cueMode: level >= 3 ? 'never' : 'after' };
 }
 export const isVowel = (l: string) => 'aeiou'.includes(l);
+
+// ---------- matching (memory pairs) ----------
+export const MATCH_PICS = ['🐶', '🐱', '🐰', '🐻', '🦁', '🐸', '🐵', '🐷', '🍎', '🍌', '🍓', '🍉', '🚗', '🚀', '⭐', '🌈'];
+export const MATCH_PAIRS = [3, 4, 6];
+/** Cards face down; turn two at a time to find the pairs. Returns the pictures in card order. */
+export function matchTask(level: number, rng: Rng = Math.random): string[] {
+  const n = MATCH_PAIRS[level - 1] ?? 3;
+  const faces = shuffle(MATCH_PICS, rng).slice(0, n);
+  return shuffle([...faces, ...faces], rng);
+}
+/** Turning cards that don't match is part of the game; only count misses beyond one per pair. */
+export const matchMisses = (mismatches: number, pairs: number) => Math.max(0, mismatches - pairs);

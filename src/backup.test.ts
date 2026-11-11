@@ -46,6 +46,7 @@ describe('back up everything', () => {
     const pid = newPaintedId('bunny');
     savePainted({ id: pid, baseId: 'bunny', paint: PNG }, 3000);
     recordRound('count', 0);
+    fake.setItem('storybox.stickers', JSON.stringify(['gem', 'moon']));
     const p = emptyProject('Studio one');
     p.audio.push({ id: 'a1', kind: 'voice', start: 0, duration: 2, volume: 1, label: 'Hi', provider: 'eleven', blobKey: 'voice-1', bufferDuration: 2 });
     newStory(p);
@@ -71,6 +72,7 @@ describe('back up everything', () => {
     expect(listPainted()[0].id).toBe(pid);
     expect(artById(pid)!.svg('#fff', { mouthOpen: false, blink: false })).toContain(PNG); // usable straight away
     expect(getLevel('count')).toBe(2);
+    expect(JSON.parse(fake.getItem('storybox.stickers')!)).toEqual(['gem', 'moon']);
     expect(listStories().some((m) => readStory(m.id)?.title === 'Studio one')).toBe(true);
     expect([...new Uint8Array(await blobsHere.get('voice-1')!.arrayBuffer())]).toEqual([1, 2, 3, 4]);
     expect(describeRestore(r)).toContain('added');

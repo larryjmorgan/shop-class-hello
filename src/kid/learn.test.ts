@@ -117,3 +117,20 @@ describe('reading', () => {
     expect([...'cat'].map(isVowel)).toEqual([false, true, false]);
   });
 });
+
+import { MATCH_PAIRS, matchMisses, matchTask } from './learn';
+describe('matching', () => {
+  it('deals pairs that fit the level', () => {
+    for (let level = 1; level <= 3; level++) {
+      const cards = matchTask(level, seq(level));
+      expect(cards).toHaveLength(MATCH_PAIRS[level - 1] * 2);
+      const counts = new Map<string, number>();
+      cards.forEach((c) => counts.set(c, (counts.get(c) ?? 0) + 1));
+      expect([...counts.values()].every((n) => n === 2)).toBe(true);
+    }
+  });
+  it('a few wrong turns are part of the game', () => {
+    expect(matchMisses(3, 3)).toBe(0);
+    expect(matchMisses(5, 3)).toBe(2);
+  });
+});

@@ -10,6 +10,7 @@ import {
   MAX_CAST, MAX_SCENE_PROPS, TITLE_SECONDS, addSceneProp, compileStory, cycleCastColor, getKidStory, newKidStory, nextMusic, removeSceneProp,
   saveKidStory, setKidStoryThumb, setSceneMusic, toggleCast, type KidStory,
 } from './story';
+import { Painter } from './Painter';
 import { StoryPlayer } from './StoryPlayer';
 import { TheaterAudio } from './theaterAudio';
 
@@ -44,6 +45,7 @@ export function StoryMaker({ storyId, onHome, onShelf }: { storyId?: string; onH
   const [step, setStep] = useState<Step>(() => (storyId && getKidStory(storyId) ? 'board' : 'scenario'));
   const [stickersFor, setStickersFor] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [painting, setPainting] = useState(false);
   const [saveProblem, setSaveProblem] = useState(false);
   const audioRef = useRef<TheaterAudio | null>(null);
   const saved = useRef(!!storyId);
@@ -123,6 +125,9 @@ export function StoryMaker({ storyId, onHome, onShelf }: { storyId?: string; onH
           <button className="kbtn big good next" onClick={goBoard} disabled={story.cast.length === 0} aria-label="Next">✓</button>
         </div>
         <div className="cast-grid" aria-label={`Pick up to ${MAX_CAST} friends`}>
+          <div className="cast-tile">
+            <button className="cast-pick paint-new" onClick={() => { setPainting(true); void audio().sfx('pop', 0.5); }} aria-label="Paint a new friend">🖌️</button>
+          </div>
           {allCharacters().map((c) => {
             const m = story.cast.find((x) => x.assetId === c.id);
             return (
@@ -141,6 +146,12 @@ export function StoryMaker({ storyId, onHome, onShelf }: { storyId?: string; onH
             );
           })}
         </div>
+        {painting && (
+          <Painter backIcon="✖" onBack={() => setPainting(false)} onFinished={(id) => {
+            setPainting(false);
+            setStory((s) => (s && !s.cast.some((x) => x.assetId === id) ? toggleCast(s, id) : s)); // her new friend joins the story
+          }} />
+        )}
       </div>
     );
   }

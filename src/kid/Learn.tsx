@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CHARACTERS } from '../assets';
 import { resumeAudio } from '../audio';
 import {
-  ACTIVITIES, ROUND, TRACE, colourTask, countTask, getLevel, isVowel, letterTask, readingTask, recordRound, shapeById, shapeTask, type Activity, type ColourTask,
+  ACTIVITIES, ROUND, TRACE, colourTask, countTask, getLevel, isVowel, letterTask, matchMisses, matchTask, readingTask, recordRound, shapeById, shapeTask, type Activity, type ColourTask,
 } from './learn';
+import { earnSticker, type STICKERS_ALL } from './stickers';
 import { TheaterAudio } from './theaterAudio';
 
 type Sound = (id: string, v?: number) => void;
@@ -57,6 +58,10 @@ export function Learn({ onHome }: { onHome: () => void }) {
           </svg>
           <span className="tile-name inflow">Shapes</span>
         </button>
+        <button className="learn-tile match" onClick={() => { setActivity('match'); sound('pop', 0.4); }} aria-label="Matching">
+          <span className="lt-cards"><i>🐶</i><i className="back" /><i>🐶</i></span>
+          <span className="tile-name inflow">Matching</span>
+        </button>
       </div>
     </div>
   );
@@ -68,6 +73,7 @@ function Round({ activity, sound, onBack }: { activity: Activity; sound: Sound; 
   const [i, setI] = useState(0);
   const [round, setRound] = useState(0);
   const misses = useRef(0);
+  const [prize, setPrize] = useState<(typeof STICKERS_ALL)[number] | null>(null);
   const total = ROUND[activity];
   const party = i >= total;
   const dancer = useMemo(() => CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)].id, [round]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -76,7 +82,7 @@ function Round({ activity, sound, onBack }: { activity: Activity; sound: Sound; 
     misses.current += m;
     const next = i + 1;
     setI(next);
-    if (next >= total) { recordRound(activity, misses.current); sound('yay', 0.8); }
+    if (next >= total) { recordRound(activity, misses.current); setPrize(earnSticker()); sound('yay', 0.8); }
   };
   const again = () => { setLevel(getLevel(activity)); misses.current = 0; setI(0); setRound((r) => r + 1); };
   const label = ACTIVITIES.find((a) => a.id === activity)!.label;
@@ -95,6 +101,12 @@ function Round({ activity, sound, onBack }: { activity: Activity; sound: Sound; 
           <span className="confetti" aria-hidden="true">🎉</span>
           <img src={charPic(dancer)} alt="" className="dance" draggable={false} />
           <span className="confetti late" aria-hidden="true">🎊</span>
+          {prize && (
+            <div className="prize" role="img" aria-label={`New sticker: ${prize.label}`}>
+              <span className="prize-sticker">{prize.e}</span>
+              <span className="prize-for" aria-hidden="true">➜ 🖌️</span>
+            </div>
+          )}
           <div className="party-buttons">
             <button className="kbtn big good" onClick={again} aria-label={`Play ${label} again`}>🔁</button>
             <button className="kbtn big" onClick={onBack} aria-label="Back to Learn">⬅️</button>
@@ -106,6 +118,8 @@ function Round({ activity, sound, onBack }: { activity: Activity; sound: Sound; 
         <LetterTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
       ) : activity === 'reading' ? (
         <ReadingTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
+      ) : activity === 'match' ? (
+        <MatchTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
       ) : activity === 'colours' ? (
         <ColourTaskView key={`${round}-${i}`} level={level} sound={sound} onSolved={solved} />
       ) : (
@@ -120,6 +134,56 @@ let lastCount: number | undefined;
 let lastColour: string | undefined;
 const recentLetters: string[] = [];
 const recentWords: string[] = [];
+
+/** 🃏 Cards lie face down; turn two to find a pair. Pairs stay face up; a wrong pair turns back over. */
+function MatchTaskView({ level, sound, onSolved }: TaskProps) {
+  const cards = useMemo(() => matchTask(level), [level]);
+  const pairs = cards.length / 2;
+  const [open, setOpen] = useState<number[]>([]); // the (up to two) cards turned this go
+  const [found, setFound] = useState<string[]>([]);
+  const mismatches = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const tap = (k: number) => {
+    if (open.length >= 2 || open.includes(k) || found.includes(cards[k])) return;
+    const now = [...open, k];
+    setOpen(now);
+    sound('pop', 0.4);
+    if (now.length < 2) return;
+    const [a, b] = now;
+    if (cards[a] === cards[b]) {
+      const f = [...found, cards[a]];
+      timer.current = setTimeout(() => {
+        setFound(f);
+        setOpen([]);
+        sound('twinkle', 0.6);
+        if (f.length === pairs) timer.current = setTimeout(() => onSolved(matchMisses(mismatches.current, pairs)), 900);
+      }, 400);
+    } else {
+      mismatches.current++;
+      timer.current = setTimeout(() => { setOpen([]); sound('boing', 0.25); }, 1000);
+    }
+  };
+
+  return (
+    <div className="learn-task match-task">
+      <div className={`match-grid n${cards.length}`}>
+        {cards.map((pic, k) => {
+          const up = open.includes(k) || found.includes(pic);
+          return (
+            <button
+              key={k} className={`match-card${up ? ' up' : ''}${found.includes(pic) ? ' found' : ''}`} onClick={() => tap(k)}
+              aria-label={up ? `Card ${pic}` : 'Card, face down'}
+            >
+              <span className="face" aria-hidden="true">{up ? pic : ''}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /**
  * 📖 First reading. She taps the letters of a short word left to right (a grown-up says each sound with her; each

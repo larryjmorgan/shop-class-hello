@@ -69,4 +69,15 @@ describe('painted friends', () => {
     expect(listPainted()).toEqual([]);
     expect(paintedAsset({ id: 'paint-zzz-1', baseId: 'zzz', paint: PNG, createdAt: 0, updatedAt: 0 })).toBeNull();
   });
+
+  it('keeps the sticker layer, drawn on top without blending', () => {
+    const id = newPaintedId('bear');
+    expect(savePainted({ id, baseId: 'bear', paint: PNG, stickers: PNG.replace('=', 'B=') })).toBe(true);
+    const svg = artById(id)!.svg('#fff', { mouthOpen: false, blink: false });
+    expect(svg.match(/<image/g)).toHaveLength(2);
+    expect(svg.lastIndexOf('mix-blend-mode')).toBeLessThan(svg.lastIndexOf('<image'));
+    expect(listPainted().find((p) => p.id === id)!.stickers).toBe(PNG.replace('=', 'B='));
+    expect(savePainted({ id, baseId: 'bear', paint: PNG, stickers: 'data:text/html,<b>' })).toBe(false);
+  });
 });
+
