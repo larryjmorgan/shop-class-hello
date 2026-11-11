@@ -12,6 +12,7 @@ import { flushSave, reloadIfOpen } from './store';
 import { allLevels, mergeLevels } from './kid/learn';
 import { getOwnStory, listOwnStories, normalizeOwnStory, saveOwnStory, type OwnStory } from './kid/own';
 import { getPainted, listPainted, normalizePainted, savePainted, type PaintedFriend } from './kid/painted';
+import { earnedStickerIds, mergeStickers } from './kid/stickers';
 import { getKidStory, listKidStories, normalizeKidStory, saveKidStory, type KidStory } from './kid/story';
 
 export const BACKUP_APP = 'storybox-backup';
@@ -25,6 +26,8 @@ export interface BackupFile {
   ownStories: OwnStory[];
   painted: PaintedFriend[];
   learnLevels: Record<string, number>;
+  /** stickers she earned in Learn (for painting) */
+  stickers?: string[];
   studio: StudioEntry[];
   blobs: Record<string, string>; // audio used by Studio stories: key -> data URL
 }
@@ -71,6 +74,7 @@ export async function makeBackup(io: BlobIO = defaultIO, now = Date.now()): Prom
     ownStories: listOwnStories(),
     painted: listPainted(),
     learnLevels: allLevels() as Record<string, number>,
+    stickers: earnedStickerIds(),
     studio,
     blobs,
   };
@@ -120,6 +124,7 @@ export async function restoreBackup(file: File, io: BlobIO = defaultIO): Promise
     merge(r, p, getPainted(p.id), (x) => { const ok = savePainted(x, x.updatedAt); forgetArt(x.id); return ok; });
   }
   mergeLevels(j.learnLevels);
+  mergeStickers(j.stickers);
 
   const blobs = j.blobs && typeof j.blobs === 'object' ? j.blobs : {};
   const here = listStories();

@@ -30,7 +30,7 @@ function shelfItems(): ShelfItem[] {
   return [...kid, ...own].sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-export function StoriesShelf({ onHome, onNew, onEdit, onEditOwn, onOpenStudio }: { onHome: () => void; onNew: () => void; onEdit: (id: string) => void; onEditOwn: (id: string) => void; onOpenStudio: (p: Project) => void }) {
+export function StoriesShelf({ onHome, onNew, onEdit, onOpenStudio }: { onHome: () => void; onNew: () => void; onEdit: (id: string) => void; onOpenStudio: (p: Project) => void }) {
   const [tick, setTick] = useState(0);
   const stories = useMemo(() => shelfItems(), [tick]); // eslint-disable-line react-hooks/exhaustive-deps
   const movies = useMemo(() => listMovies(), [tick]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -124,7 +124,7 @@ export function StoriesShelf({ onHome, onNew, onEdit, onEditOwn, onOpenStudio }:
                   <span className="len">{fmtTime(p.duration).replace(/\.\d$/, '')}</span>
                 </button>
                 <div className="movie-tools">
-                  <button className="kbtn round small" onClick={() => (s.kind === 'own' ? onEditOwn : onEdit)(s.id)} aria-label={`Change ${s.title}`}>✏️</button>
+                  {s.kind === 'kid' && <button className="kbtn round small" onClick={() => onEdit(s.id)} aria-label={`Change ${s.title}`}>✏️</button>}
                   {parent && (
                     <>
                       <button className="btn small" onClick={() => setExporting(p)} aria-label="Save as a video file">🎬 Video</button>

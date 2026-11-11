@@ -114,7 +114,7 @@ export function App({ onKidMode }: { onKidMode?: () => void } = {}) {
     <div className={`app${tall ? ' tall' : ''}${saveFailed || autoNeeds ? ' has-banner' : ''}`}>
       <header className="topbar">
         <div className="brand">🎬 <span>StoryBox</span></div>
-        {onKidMode && <button className="btn" onClick={onKidMode} title="Back to the kids' puppet screen">🧒 Kids' mode</button>}
+        {onKidMode && <button className="btn" onClick={onKidMode} title="Back to the kids' screens">🧒 Kids' mode</button>}
         <input className="title" value={project.title} onChange={(e) => setTitle(e.target.value)} aria-label="Story title" />
         <label className="dur" title={`Stories can be ${MIN_DURATION}s to ${MAX_DURATION / 60} minutes`}>
           Length

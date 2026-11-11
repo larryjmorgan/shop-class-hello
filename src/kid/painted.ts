@@ -12,6 +12,8 @@ export interface PaintedFriend {
   id: string; // "paint-<baseId>-<random>"
   baseId: string;
   paint: string; // data:image/png
+  /** stickers she put on (crown, bow…), drawn on top as they are; not trimmed to the shape */
+  stickers?: string; // data:image/png
   createdAt: number;
   updatedAt: number;
 }
@@ -31,7 +33,9 @@ export function paintedAsset(p: PaintedFriend): ArtAsset | null {
     svg: (_c, face) =>
       `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 200 200">` +
       blankSvg(base, face).replace(/^<svg[^>]*>|<\/svg>$/g, '') +
-      `<image x="0" y="0" width="200" height="200" href="${p.paint}" xlink:href="${p.paint}" style="mix-blend-mode:multiply"/></svg>`,
+      `<image x="0" y="0" width="200" height="200" href="${p.paint}" xlink:href="${p.paint}" style="mix-blend-mode:multiply"/>` +
+      (p.stickers ? `<image x="0" y="0" width="200" height="200" href="${p.stickers}" xlink:href="${p.stickers}"/>` : '') +
+      `</svg>`,
   };
 }
 
@@ -44,7 +48,8 @@ export function normalizePainted(raw: unknown): PaintedFriend | null {
   const p = raw as Partial<PaintedFriend> | null;
   if (!p || typeof p.id !== 'string' || !isPainted(p.id) || typeof p.paint !== 'string' || !PNG_URL.test(p.paint)) return null;
   if (typeof p.baseId !== 'string' || !CHARACTERS.some((c) => c.id === p.baseId) || p.id.split('-')[1] !== p.baseId) return null;
-  return { id: p.id, baseId: p.baseId, paint: p.paint, createdAt: Number(p.createdAt) || 0, updatedAt: Number(p.updatedAt) || 0 };
+  const stickers = typeof p.stickers === 'string' && PNG_URL.test(p.stickers) ? p.stickers : undefined;
+  return { id: p.id, baseId: p.baseId, paint: p.paint, ...(stickers ? { stickers } : {}), createdAt: Number(p.createdAt) || 0, updatedAt: Number(p.updatedAt) || 0 };
 }
 
 function readAll(): PaintedFriend[] {
@@ -78,8 +83,8 @@ export function newPaintedId(baseId: string): string {
 export function savePainted(p: Omit<PaintedFriend, 'createdAt' | 'updatedAt'> & { createdAt?: number }, now = Date.now()): boolean {
   const all = readAll();
   const old = all.find((x) => x.id === p.id);
-  if (!PNG_URL.test(p.paint) || (!old && all.length >= MAX_PAINTED)) return false;
-  const rec: PaintedFriend = { ...p, createdAt: old?.createdAt ?? p.createdAt ?? now, updatedAt: now };
+  if (!PNG_URL.test(p.paint) || (p.stickers !== undefined && !PNG_URL.test(p.stickers)) || (!old && all.length >= MAX_PAINTED)) return false;
+  const rec: PaintedFriend = { id: p.id, baseId: p.baseId, paint: p.paint, ...(p.stickers ? { stickers: p.stickers } : {}), createdAt: old?.createdAt ?? p.createdAt ?? now, updatedAt: now };
   if (!writeAll([...all.filter((x) => x.id !== p.id), rec])) return false;
   const a = paintedAsset(rec);
   if (a) registerArt(a);
