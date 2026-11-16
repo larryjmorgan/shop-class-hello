@@ -1,0 +1,18 @@
+[project]
+name = "hosesched"
+version = "0.1.0"
+description = "Daily finite-capacity scheduler for hose assembly cells (OR-Tools CP-SAT)"
+requires-python = ">=3.10"
+dependencies = ["ortools>=9.10", "pandas>=2.0", "openpyxl>=3.1"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+hosesched = "hosesched.cli:main"
+
+[tool.setuptools]
+packages = ["hosesched"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
