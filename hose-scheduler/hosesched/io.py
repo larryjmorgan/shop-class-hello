@@ -170,16 +170,41 @@ def parse_settings(df) -> Settings:
 
 
 # ---------------------------------------------------------------- main loader
+def normalize_tables(tables: dict) -> dict:
+    """Lower-case sheet and column names, drop blank rows."""
+    out = {}
+    for k, df in tables.items():
+        df = df.copy()
+        df.columns = [_norm(c) for c in df.columns]
+        out[_norm(k)] = df.dropna(how="all")
+    return out
+
+
 def load_input(path) -> InputData:
+    """Load a workbook or a folder of CSVs."""
     path = Path(path)
     tables = read_tables(path)
+    fallback = None
+    if path.is_file():
+        fallback = (datetime.fromtimestamp(path.stat().st_mtime, ET).replace(tzinfo=None, second=0, microsecond=0),
+                    "data_as_of not set; using the input file's last-modified time. Put the ERP extract "
+                    "timestamp in Settings so the stale-data check is accurate.")
+    return input_from_tables(tables, str(path), fallback)
+
+
+def input_from_tables(tables: dict, source: str = "", fallback_data_as_of=None) -> InputData:
+    """Validate tables (from files or from MCP) and build typed input.
+
+    fallback_data_as_of: (datetime, warning) used only if Settings has no data_as_of."""
+    tables = normalize_tables(tables)
+    path = source
     issues: list = []
     st = parse_settings(tables.get("settings"))
     if st.data_as_of is None:
-        if path.is_file():
-            st.data_as_of = datetime.fromtimestamp(path.stat().st_mtime, ET).replace(tzinfo=None, second=0, microsecond=0)
-            issues.append(Issue("warn", "Settings", "data_as_of not set; using the input file's last-modified time. "
-                                "Put the ERP extract timestamp in Settings so the stale-data check is accurate."))
+        if fallback_data_as_of:
+            st.data_as_of = fallback_data_as_of[0]
+            if fallback_data_as_of[1]:
+                issues.append(Issue("warn", "Settings", fallback_data_as_of[1]))
         else:
             st.data_as_of = now_et()
 
@@ -292,4 +317,4 @@ def load_input(path) -> InputData:
 
     if not cells:
         raise ValueError("No usable cells in the Cells sheet.\n" + "\n".join(map(str, issues)))
-    return InputData(st, cells, parts, orders, overrides, changeover, issues, str(path))
+    return InputData(st, cells, parts, orders, overrides, changeover, issues, path)

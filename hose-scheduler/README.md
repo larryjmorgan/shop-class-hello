@@ -14,7 +14,7 @@ cd hose-scheduler
 pip install -r requirements.txt
 python -m hosesched sample                          # writes examples/sample_inputs.xlsx (fictional data)
 python -m hosesched run examples/sample_inputs.xlsx # writes out/schedule_<date>.xlsx / .html / .json
-python -m pytest                                    # 13 tests
+python -m pytest                                    # 25 tests (includes a mock Fabric MCP server)
 ```
 
 Open `out/schedule_<date>.html` (works offline, prints one sheet per cell) or the `.xlsx`.
@@ -76,6 +76,41 @@ the vocabulary and any formulas against your ASCM text before quoting this tool 
 Every output carries the generation time and the data's timestamp. If the data is older than
 `max_data_age_min` (default 120) a red STALE DATA banner appears and the command exits with code 2.
 
+## Live data from Microsoft Fabric (MCP)
+
+Instead of a workbook, point `run` at a source config. The tool connects to your MCP server, calls the
+tools you name, and feeds the results through the same validation as a workbook.
+
+```bash
+cp examples/fabric.example.yaml my_fabric.yaml        # fill in your server, tools and queries
+python -m hosesched mcp-tools my_fabric.yaml          # 1. what tools does the server offer?
+python -m hosesched mcp-test  my_fabric.yaml          # 2. fetch every table, show columns and rows, validate
+python -m hosesched run       my_fabric.yaml          # 3. build the schedule from live data
+```
+
+**Nothing about your Fabric setup is assumed.** Tool names, SQL, and column names are all yours to put in the
+config. `mcp-tools` lists what the server offers; `columns:` maps your Fabric column names to the scheduler's.
+The example file uses placeholder names, not real ones.
+
+* **Transports:** streamable HTTP (URL + headers) or a local stdio process.
+* **Auth:** secrets stay out of the file. Use `${ENV_VAR}` in `server:`, or `token_command` (a command, run
+  without a shell, that prints a token), for example one that asks your Azure CLI for a token for the resource your
+  tenant requires. Interactive browser sign-in is not supported.
+* **Read only:** only the tools named in the config are ever called, and the tool never writes to Fabric.
+  Give it a read-only identity anyway.
+* **Mixed sources:** any table can be a local file instead (`cells: {file: cells.csv}`), so you can move table by
+  table. `hosesched override` appends to the config's local overrides file; overrides are not written back to Fabric.
+* **Freshness:** `freshness:` names a last-modified column. The newest value becomes "data as of", so the
+  stale banner reflects the data, not when the query ran. Without it the tool warns that freshness is unverified.
+  SQL timestamps are often UTC with no marker; set `assume_tz`. A timestamp that lands in the future is treated as
+  unverified (it almost always means a timezone mix-up).
+* **Result shapes accepted:** JSON (a list of objects, or `{columns, rows}`), JSON wrapped as `{"result": "<json>"}`,
+  or CSV text. Use `rows_path: a.b` if the rows are nested. Paging is not built: make the query return the whole
+  open-order set, and check the row count in `mcp-test`.
+* **Audit trail:** every MCP run saves exactly what it pulled to `inputs_snapshot_<date>/` next to the outputs, so a
+  schedule can be explained or reproduced later. During the parallel run this is your evidence.
+* **Tested against a mock server** (`tests/mock_fabric_server.py`) over stdio with the `mcp` 2.3.0 SDK. It has not been run against a real Fabric endpoint. Expect to adjust the config on first contact. An HTTP path for `mcp` 1.x is included but untested.
+
 ## Team-lead overrides (reason required)
 
 ```bash
@@ -90,7 +125,8 @@ scheduler can review them and fold repeat patterns back into the rules.
 
 | Plan requirement | Where it is in the tool |
 | --- | --- |
-| Every schedule shows its refresh time | Header on every sheet, the HTML and the JSON; stale-data banner |
+| Every schedule shows its refresh time | Header on every sheet, the HTML and the JSON; stale-data banner, driven by the Fabric data's own timestamp |
+| Live data through Fabric instead of an hourly Excel refresh | MCP source config (above) |
 | Hot jobs enter through the tool | `hot` flag or `expedite` override; weighted in the objective |
 | One-click override with a reason, routed to the scheduler | `override` command; reason mandatory; logged |
 | Kitting stages ahead, live priority screen | Kitting sheet / HTML section ordered by "stage by" time |
@@ -110,5 +146,4 @@ scheduler can review them and fold repeat patterns back into the rules.
 * Solve time grows quickly with size. About 40 batches over 3 days solves well in 30 s. At about 80 batches
   the result is still valid and verified, but gains over the baseline get smaller; use `--days 2`, more
   `--seconds`, or a larger machine. The reported solver status is `FEASIBLE`, not proven optimal.
-* Times are US Eastern. Input must be an extract, not a live ERP connection: Fabric/MCP integration is the next step
-  (replace `hosesched.io.load_input`; everything else consumes its `InputData`).
+* Times are US Eastern. Datetime columns coming from Fabric (`kit_ready`, `due_date`) must already be Eastern local time; convert them in the query.
