@@ -1,0 +1,48 @@
+# Preferred for an unattended daily job: read the Fabric SQL endpoint directly, write results to a Warehouse.
+# Nothing here is guessed: replace the queries and column names with yours. Secrets stay in env vars.
+#
+#   python -m hosesched run examples/fabric_sql.example.yaml --publish examples/fabric_sql.example.yaml
+#   python -m hosesched ddl            # T-SQL to create the result tables in the Warehouse (run it once)
+
+server:
+  transport: sql
+  driver: pyodbc                         # needs `pip install pyodbc` and the Microsoft ODBC driver
+  connection_string: "${FABRIC_SQL_CONNECTION}"   # e.g. built for your SQL analytics endpoint and a service principal
+  timeout_seconds: 60
+
+freshness:
+  table: orders
+  column: LAST_MODIFIED_UTC
+  assume_tz: UTC
+
+tables:
+  orders:
+    query: >
+      SELECT WO_NUMBER, ITEM_NO, QTY_OPEN, PROMISE_DATE, HOT_FLAG, PRIORITY, KIT_READY_TS, CUSTOMER, LAST_MODIFIED_UTC
+      FROM open_work_orders WHERE DEPARTMENT = 'ASSEMBLY'
+    columns: {WO_NUMBER: order_id, ITEM_NO: part_number, QTY_OPEN: qty, PROMISE_DATE: due_date,
+              HOT_FLAG: hot, PRIORITY: priority, KIT_READY_TS: kit_ready, CUSTOMER: customer}
+  parts:
+    query: "SELECT ITEM_NO, HOSE_FAMILY, MIN_PER_PIECE, STD_BATCH, SETUP_MIN, WORKCENTERS FROM item_master"
+    columns: {ITEM_NO: part_number, HOSE_FAMILY: hose_type, MIN_PER_PIECE: run_min_per_unit,
+              STD_BATCH: max_batch, SETUP_MIN: setup_min, WORKCENTERS: eligible_cells}
+  cells:
+    query: "SELECT * FROM work_cells"
+  changeover:
+    query: "SELECT * FROM hose_changeover"
+  overrides:                             # team-lead overrides as rows (reason required); read live each run
+    query: "SELECT order_id, action, value, reason, entered_by, timestamp FROM schedule_overrides"
+
+rules_file: rules.yaml                   # the scheduler's sequencing rules, version-controlled next to this file
+settings:
+  horizon_days: 3
+  max_data_age_min: 60
+  solve_seconds: 120
+
+# Where results go. Every table carries run_id, generated_at and data_as_of.
+# A Lakehouse SQL endpoint is read-only (as I understand Fabric): write to a Warehouse, or use fabric/notebook_runner.py.
+output:
+  driver: pyodbc
+  connection_string: "${FABRIC_WAREHOUSE_CONNECTION}"
+  tables:                                # optional: map result table -> your name
+    schedule_ops: dbo.schedule_ops

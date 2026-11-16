@@ -171,6 +171,13 @@ def write_html(r: Result, path) -> Path:
                           f"<span class='late'>{escape(k['attention'])}</span>"] for k in kit1],
                         ["hot" if k["hot"] else "" for k in kit1]))
 
+    if r.changes is not None:
+        parts.append(f"<h2>What changed since the last schedule</h2><p class='mute'>Previous schedule: {p.prev_generated:%a %m/%d %I:%M %p} ET. "
+                     "Jobs about to start or already running were kept in place.</p>")
+        parts.append(_table(["Order", "Batch", "Change", "Detail"],
+                            [[escape(c["order_id"]), escape(c["batch_id"]), escape(c["change"]), escape(c["detail"])] for c in r.changes])
+                     if r.changes else "<p>No changes.</p>")
+
     # Exceptions
     ex = exception_rows(r)
     parts.append("<h2>Exceptions and risks</h2>")

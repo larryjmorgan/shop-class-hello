@@ -49,6 +49,10 @@ class Problem:
     issues: list = field(default_factory=list)
     horizon_end: int = 0                              # minutes from origin
     as_of: Optional[datetime] = None
+    prev_info: dict = field(default_factory=dict)     # batch_id -> (slot idx, start worked-minute) in the previous schedule
+    frozen: dict = field(default_factory=dict)        # slot idx -> [batch_id, ...] kept first, in order
+    prev_removed: list = field(default_factory=list)  # batch ids in the previous schedule that no longer exist
+    prev_generated: Optional[datetime] = None
 
     @property
     def settings(self):
@@ -62,20 +66,43 @@ class Problem:
         return self.origin + timedelta(minutes=minutes)
 
     # ---- setup rules
+    @property
+    def rules(self):
+        return self.data.rules
+
     def setup_between(self, prev_part: Optional[str], prev_hose: Optional[str], b: Batch) -> int:
-        st = self.settings
-        if prev_part is not None and prev_part == b.part_number:
-            return 0
+        """Minutes of changeover before `b` when it follows `prev_part`. Order of precedence:
+        explicit part-to-part override > same part (0) > same tooling group > hose-type matrix."""
+        st, parts = self.settings, self.data.parts
+        extra = parts[b.part_number].setup_min
+        if prev_part is not None:
+            if prev_part == b.part_number:
+                return 0
+            ov = self.rules.setup_overrides.get((prev_part, b.part_number))
+            if ov is not None:
+                return int(math.ceil(ov))
+            pp = parts.get(prev_part)
+            if pp is not None and pp.tooling_group and pp.tooling_group == parts[b.part_number].tooling_group:
+                return int(math.ceil(st.setup_same_tooling_min + extra))
         base = self.data.changeover.get((prev_hose, b.hose_type))
         if base is None:
             base = st.setup_same_type_min if prev_hose == b.hose_type else st.setup_default_min
-        return int(math.ceil(base + self.data.parts[b.part_number].setup_min))
+        return int(math.ceil(base + extra))
 
     def first_setup(self, slot: Slot, b: Batch) -> int:
+        if b.running:
+            return 0
         c = slot.cell
         if slot.day_index == 0 and c.current_hose_type:
             return self.setup_between(c.current_part, c.current_hose_type, b)
         return int(math.ceil(self.settings.startup_min + self.data.parts[b.part_number].setup_min))
+
+    def rank(self, b: Batch) -> int:
+        return self.rules.sequence_rank.get(b.hose_type, 0)
+
+    def can_follow(self, prev: Batch, b: Batch) -> bool:
+        """sequence_rank rule: ranks may not decrease within a cell-day (e.g. PTFE always last)."""
+        return self.rank(prev) <= self.rank(b)
 
     def earliest_start(self, slot: Slot, b: Batch) -> int:
         lo = slot.off0
@@ -85,7 +112,8 @@ class Problem:
 
 
 def build_problem(data: InputData, schedule_date: Optional[date] = None,
-                  horizon_days: Optional[int] = None, as_of: Optional[datetime] = None) -> Problem:
+                  horizon_days: Optional[int] = None, as_of: Optional[datetime] = None,
+                  previous=None) -> Problem:
     st = data.settings
     issues = list(data.issues)
     hol = set(st.holidays)
@@ -165,4 +193,40 @@ def build_problem(data: InputData, schedule_date: Optional[date] = None,
                 _mins(o.due, origin), o.due, _mins(o.kit_ready, origin) if o.kit_ready else None,
                 weight, elig, dur, part.preferred_cell, earliest.get(o.order_id), seq, n))
         seq += 1
+    if previous is not None:
+        apply_previous(prob, previous)
     return prob
+
+
+def apply_previous(prob: Problem, prev) -> None:
+    """Match the previous published schedule to today's batches: remember where each batch was
+    (to measure and discourage reshuffling), freeze what is about to run, and shorten any batch
+    that is already on the cell."""
+    st = prob.settings
+    by_id = {b.batch_id: b for b in prob.batches}
+    slot_of = {(s.cell.cell_id, s.day): s for s in prob.slots}
+    prob.prev_generated = prev.generated_at
+    as_clk = _mins(prob.as_of, prob.origin) if prob.as_of else None
+    frozen = {}
+    for rec in sorted(prev.ops, key=lambda r: (r["day"], r["cell_id"], r["seq"])):
+        b = by_id.get(rec["batch_id"])
+        if b is None:
+            prob.prev_removed.append(rec["batch_id"])
+            continue
+        s = slot_of.get((rec["cell_id"], rec["day"]))
+        if s is None or rec["qty"] != b.size:
+            continue                                   # moved out of the horizon, or the quantity changed: treat as new
+        start_clk, end_clk = _mins(rec["start"], prob.origin), _mins(rec["end"], prob.origin)
+        prob.prev_info[b.batch_id] = (s.idx, s.worked(start_clk))
+        if as_clk is None:
+            continue
+        if start_clk < as_clk < end_clk and s.day_index == 0:      # on the cell right now
+            remaining = max(1, s.worked(end_clk) - s.off0)
+            b.dur = {s.cell.cell_id: remaining}
+            b.eligible = (s.cell.cell_id,)
+            b.running = True
+            frozen.setdefault(s.idx, []).append(b.batch_id)
+        elif start_clk < as_clk + st.freeze_minutes and start_clk >= as_clk:
+            b.eligible = (s.cell.cell_id,)
+            frozen.setdefault(s.idx, []).append(b.batch_id)
+    prob.frozen = frozen

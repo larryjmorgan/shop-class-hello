@@ -16,6 +16,7 @@ class Part:
     setup_min: float = 0.0           # part-specific add-on (die, fitting, fixture)
     eligible_cells: tuple = ()       # empty = any cell
     preferred_cell: Optional[str] = None
+    tooling_group: Optional[str] = None   # same group = quick die/fixture swap
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,13 @@ class Cell:
     max_overtime_min: int
     current_hose_type: Optional[str] = None
     current_part: Optional[str] = None
+
+
+@dataclass
+class Rules:
+    """Shop-floor sequencing knowledge supplied by the scheduler (rules.yaml)."""
+    sequence_rank: dict = field(default_factory=dict)      # hose_type -> rank; ranks must not decrease within a cell-day
+    setup_overrides: dict = field(default_factory=dict)    # (from_part, to_part) -> minutes, beats every other setup rule
 
 
 @dataclass
@@ -80,6 +88,12 @@ class Settings:
     w_overload: int = 30
     w_flow: int = 1
     w_pref: int = 50
+    w_move: int = 30
+    setup_same_tooling_min: float = 5
+    freeze_minutes: int = 120
+    objective_mode: str = "lexicographic"       # or "weighted"
+    priority_order: tuple = ("late", "tardy", "carry", "moves", "overtime", "setup", "flow")
+    rules_file: str = ""
 
 
 @dataclass
@@ -111,6 +125,7 @@ class Batch:
     not_before_day: Optional[date] = None
     seq: int = 0                     # original order-entry position (FIFO)
     n_batches: int = 1
+    running: bool = False            # already on the cell: no setup, remaining time only
 
 
 @dataclass
@@ -127,6 +142,13 @@ class Slot:
     off0: int            # earliest start (as_of on day one)
     lunch_off: int       # worked minute at which lunch begins (axis units)
     lunch_min: int
+
+    def worked(self, clk: int) -> int:
+        """Inverse of clock(): minutes from origin -> worked minute on this slot's axis."""
+        d = clk - self.base
+        if self.lunch_min and d >= self.lunch_off:
+            d = d - self.lunch_min if d >= self.lunch_off + self.lunch_min else self.lunch_off
+        return d
 
     def clock(self, w: int, is_start: bool) -> int:
         """Worked minute -> minutes from origin, skipping the lunch break."""
@@ -155,3 +177,5 @@ class Schedule:
     objective: Optional[float] = None
     best_bound: Optional[float] = None
     seconds: float = 0.0
+    tiers: dict = field(default_factory=dict)   # tier name -> optimized value (lexicographic mode)
+    notes: list = field(default_factory=list)

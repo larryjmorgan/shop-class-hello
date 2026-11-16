@@ -77,4 +77,38 @@ def kpi_lines(r: Result) -> list:
         ("Minutes beyond planned capacity", lambda k: f"{k['over_cap_min']:,}"),
         ("Overtime minutes (past shift end)", lambda k: f"{k['overtime_min']:,}"),
     ]
+    if r.changes is not None:
+        spec.append(("Reshuffling vs last schedule (min)", lambda k: f"{k['moves']:,}"))
     return [(name, f(o), f(b)) for name, f in spec]
+
+
+def result_tables(r: Result) -> dict:
+    """The schedule as flat tables, for a database, Power BI or the Fabric notebook runner.
+    Every table carries run_id so each run can be kept or replaced as a unit."""
+    import pandas as pd
+    run_id = f"{r.generated_at:%Y%m%d%H%M}"
+    st = r.problem.settings
+
+    def stamp(df):
+        df.insert(0, "run_id", run_id)
+        return df
+
+    ops = pd.DataFrame(op_rows(r))
+    orders = pd.DataFrame([{k: v for k, v in o.items() if k not in ("completion_min", "weight")} for o in r.orders])
+    kpi = dict(r.kpi_opt, run_id=run_id, generated_at=r.generated_at, data_as_of=st.data_as_of,
+               data_age_min=r.data_age_min, stale=int(r.stale), method=r.optimized.method,
+               first_day=r.problem.days[0], baseline_late=r.kpi_base["late"], baseline_setup_min=r.kpi_base["setup_min"])
+    tables = dict(
+        schedule_ops=stamp(ops),
+        schedule_orders=stamp(orders),
+        schedule_kpis=pd.DataFrame([kpi])[["run_id"] + [c for c in kpi if c != "run_id"]],
+        schedule_load=stamp(pd.DataFrame(r.loads)),
+        schedule_kitting=stamp(pd.DataFrame(kitting_rows(r))),
+        schedule_exceptions=stamp(pd.DataFrame(exception_rows(r), columns=["level", "item", "detail"])),
+        schedule_changes=stamp(pd.DataFrame(r.changes or [], columns=["batch_id", "order_id", "change", "detail"])),
+    )
+    for name, df in tables.items():                  # one stamp on every table so freshness is never lost
+        if name != "schedule_kpis" and "generated_at" not in df.columns:
+            df.insert(1, "generated_at", r.generated_at)
+            df.insert(2, "data_as_of", st.data_as_of)
+    return tables

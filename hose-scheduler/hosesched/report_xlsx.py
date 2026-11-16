@@ -178,6 +178,13 @@ def write_xlsx(r: Result, path) -> Path:
         for c in row:
             c.number_format = "0%"
 
+    if r.changes is not None:
+        ws = wb.create_sheet("Changes")
+        ws["A1"] = f"Changes since the previous schedule ({p.prev_generated:%a %m/%d %I:%M %p})"
+        ws["A1"].font = Font(size=14, bold=True)
+        _table(ws, 3, [("order_id", "Order"), ("batch_id", "Batch"), ("change", "Change"), ("detail", "Detail")],
+               r.changes, [11, 14, 40, 70])
+
     ws = wb.create_sheet("Exceptions")
     _table(ws, 1, [("level", "Level"), ("item", "Item"), ("detail", "Detail")], exception_rows(r), [11, 28, 120])
     ws = wb.create_sheet("Overrides")

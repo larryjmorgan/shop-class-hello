@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from .models import Cell, Issue, Order, Override, Part, Settings
+from .models import Cell, Issue, Order, Override, Part, Rules, Settings
 
 ET = ZoneInfo("America/New_York")
 OVERRIDE_ACTIONS = ("pin_cell", "earliest_day", "hold", "expedite")
@@ -34,6 +34,7 @@ class InputData:
     changeover: dict                 # (from_hose, to_hose) -> minutes
     issues: list = field(default_factory=list)
     source: str = ""
+    rules: Rules = field(default_factory=Rules)
 
 
 # ---------------------------------------------------------------- helpers
@@ -145,8 +146,8 @@ def parse_settings(df) -> Settings:
             raw[k] = r.get("value")
     ints = ["max_data_age_min", "horizon_days", "pull_ahead_days", "kit_lead_min",
             "workers", "hot_multiplier", "w_late", "w_tardy", "w_carry", "w_setup",
-            "w_overload", "w_flow", "w_pref"]
-    floats = ["setup_same_type_min", "setup_default_min", "startup_min", "solve_seconds"]
+            "w_overload", "w_flow", "w_pref", "w_move", "freeze_minutes"]
+    floats = ["setup_same_type_min", "setup_default_min", "startup_min", "solve_seconds", "setup_same_tooling_min"]
     for k in ints:
         if not _blank(raw.get(k)):
             setattr(st, k, _i(raw[k]))
@@ -161,6 +162,12 @@ def parse_settings(df) -> Settings:
         st.data_as_of = pd.to_datetime(raw["data_as_of"]).to_pydatetime()
     if not _blank(raw.get("due_cutoff")):
         st.due_cutoff = parse_time(raw["due_cutoff"])
+    if not _blank(raw.get("objective_mode")):
+        st.objective_mode = _s(raw["objective_mode"]).lower()
+    if not _blank(raw.get("priority_order")):
+        st.priority_order = tuple(x for x in re.split(r"[,;\s>]+", _s(raw["priority_order"]).lower()) if x)
+    if not _blank(raw.get("rules_file")):
+        st.rules_file = _s(raw["rules_file"])
     if not _blank(raw.get("baseline_rule")):
         st.baseline_rule = _s(raw["baseline_rule"]).lower()
     if not _blank(raw.get("holidays")):
@@ -180,7 +187,39 @@ def normalize_tables(tables: dict) -> dict:
     return out
 
 
-def load_input(path) -> InputData:
+TIERS = ("late", "tardy", "carry", "moves", "overtime", "setup", "flow")
+
+
+def parse_rules(raw, parts: dict, issues: list) -> Rules:
+    """rules.yaml:  sequence_rank: {PTFE: 9}   setup_overrides: [{from_part: A, to_part: B, minutes: 3}]"""
+    r = Rules()
+    for ht, rk in ((raw or {}).get("sequence_rank") or {}).items():
+        try:
+            r.sequence_rank[str(ht)] = int(rk)
+        except Exception:
+            issues.append(Issue("error", "Rules", f"sequence_rank for {ht} must be an integer"))
+    for row in (raw or {}).get("setup_overrides") or []:
+        try:
+            a, b, mins = str(row["from_part"]), str(row["to_part"]), float(row["minutes"])
+            for pn in (a, b):
+                if pn not in parts:
+                    issues.append(Issue("warn", "Rules", f"setup_overrides: part {pn} is not in the Parts sheet"))
+            r.setup_overrides[(a, b)] = mins
+        except Exception:
+            issues.append(Issue("error", "Rules", "each setup_overrides row needs from_part, to_part, minutes"))
+    return r
+
+
+def load_rules_file(path, base_dir=None):
+    import yaml
+    p = Path(path)
+    p = p if p.is_absolute() or base_dir is None else Path(base_dir) / p
+    if not p.exists():
+        raise ValueError(f"rules file not found: {p}")
+    return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+
+
+def load_input(path, rules_path=None) -> InputData:
     """Load a workbook or a folder of CSVs."""
     path = Path(path)
     tables = read_tables(path)
@@ -189,10 +228,12 @@ def load_input(path) -> InputData:
         fallback = (datetime.fromtimestamp(path.stat().st_mtime, ET).replace(tzinfo=None, second=0, microsecond=0),
                     "data_as_of not set; using the input file's last-modified time. Put the ERP extract "
                     "timestamp in Settings so the stale-data check is accurate.")
-    return input_from_tables(tables, str(path), fallback)
+    base = path if path.is_dir() else path.parent
+    return input_from_tables(tables, str(path), fallback, rules_path=rules_path, base_dir=base)
 
 
-def input_from_tables(tables: dict, source: str = "", fallback_data_as_of=None) -> InputData:
+def input_from_tables(tables: dict, source: str = "", fallback_data_as_of=None, rules=None,
+                      rules_path=None, base_dir=None) -> InputData:
     """Validate tables (from files or from MCP) and build typed input.
 
     fallback_data_as_of: (datetime, warning) used only if Settings has no data_as_of."""
@@ -243,7 +284,7 @@ def input_from_tables(tables: dict, source: str = "", fallback_data_as_of=None) 
             elig = tuple(x.strip() for x in re.split(r"[,;]", _s(r.get("eligible_cells"))) if x.strip())
             p = Part(pn, _s(r.get("description")), _s(r["hose_type"]), float(r["run_min_per_unit"]),
                      int(float(r["max_batch"])), _f(r.get("setup_min"), 0.0), elig,
-                     _s(r.get("preferred_cell")) or None)
+                     _s(r.get("preferred_cell")) or None, _s(r.get("tooling_group")) or None)
             if p.run_min_per_unit <= 0 or p.max_batch <= 0:
                 raise ValueError("run_min_per_unit and max_batch must be positive")
             for e in elig + ((p.preferred_cell,) if p.preferred_cell else ()):
@@ -317,4 +358,22 @@ def input_from_tables(tables: dict, source: str = "", fallback_data_as_of=None) 
 
     if not cells:
         raise ValueError("No usable cells in the Cells sheet.\n" + "\n".join(map(str, issues)))
-    return InputData(st, cells, parts, orders, overrides, changeover, issues, path)
+    if st.objective_mode not in ("lexicographic", "weighted"):
+        issues.append(Issue("error", "Settings", "objective_mode must be lexicographic or weighted"))
+        st.objective_mode = "lexicographic"
+    po = st.priority_order
+    if set(po) != set(TIERS) or len(po) != len(TIERS):
+        issues.append(Issue("error", "Settings", f"priority_order must list each of {', '.join(TIERS)} exactly once; using the default"))
+        st.priority_order = Settings().priority_order
+    elif po.index("carry") > min(po.index("overtime"), po.index("setup")):
+        issues.append(Issue("error", "Settings", "priority_order must rank `carry` above `overtime` and `setup`: otherwise "
+                            "the optimizer could 'save' setups or overtime by simply not scheduling work. Using the default."))
+        st.priority_order = Settings().priority_order
+    try:
+        raw_rules = rules if rules is not None else (
+            load_rules_file(rules_path or st.rules_file, base_dir) if (rules_path or st.rules_file) else {})
+    except ValueError as e:
+        issues.append(Issue("error", "Rules", str(e)))
+        raw_rules = {}
+    return InputData(st, cells, parts, orders, overrides, changeover, issues, path,
+                     parse_rules(raw_rules, parts, issues))

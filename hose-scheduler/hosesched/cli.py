@@ -24,7 +24,8 @@ def _write_json(r, path: Path) -> Path:
     doc = dict(
         generated_at=r.generated_at, data_as_of=r.problem.settings.data_as_of, data_age_min=r.data_age_min,
         stale=r.stale, method=r.optimized.method, days=r.problem.days, kpis=r.kpi_opt, baseline_kpis=r.kpi_base,
-        operations=op_rows(r), kitting=kitting_rows(r), orders=r.orders, load=r.loads,
+        operations=op_rows(r), kitting=kitting_rows(r), orders=r.orders, load=r.loads, changes=r.changes,
+        priority_order=r.problem.settings.priority_order,
         issues=[str(i) for i in r.issues])
     path.write_text(json.dumps(doc, indent=2, default=str), encoding="utf-8")
     return path
@@ -39,20 +40,31 @@ def cmd_sample(a) -> int:
 def cmd_run(a) -> int:
     d = date.fromisoformat(a.date) if a.date else None
     as_of = datetime.fromisoformat(a.as_of) if a.as_of else None
-    r = run_pipeline(a.input, d, a.days, a.seconds, as_of, a.rule, a.verbose, a.workers)
     out = Path(a.out_dir)
+    r = run_pipeline(a.input, d, a.days, a.seconds, as_of, a.rule, a.verbose, a.workers, previous=a.previous,
+                     rules_path=a.rules, out_dir=out)
     out.mkdir(parents=True, exist_ok=True)
     tag = f"{r.problem.days[0]:%Y-%m-%d}"
-    if r.snapshot is not None:
+    if r.snapshot is not None and hasattr(r.snapshot, "tables"):
         save_snapshot(r.snapshot, out / f"inputs_snapshot_{tag}")
     files = [write_xlsx(r, out / f"schedule_{tag}.xlsx"), write_html(r, out / f"schedule_{tag}.html"),
              _write_json(r, out / f"schedule_{tag}.json")]
+    hist = out / "history"                       # every run is kept: the next run can compare against it
+    hist.mkdir(parents=True, exist_ok=True)
+    _write_json(r, hist / f"schedule_{tag}_{r.generated_at:%H%M}.json")
+    if a.publish:
+        from .sink import publish
+        n = publish(a.publish, r)
+        print(f"Published {n} rows to the output database.")
     k, b = r.kpi_opt, r.kpi_base
     print(f"\nHose scheduler {__version__}   generated {r.generated_at:%a %m/%d %I:%M %p} ET   "
           f"data age {r.data_age_min} min{'   ** STALE **' if r.stale else ''}")
     print(f"Method: {r.optimized.method} {r.optimized.solver_status}   batches: {len(r.problem.batches)}   "
           f"days: {', '.join(f'{x:%a %m/%d}' for x in r.problem.days)}")
     print(f"{'':34s}{'schedule':>12s}{'baseline':>12s}")
+    if r.changes is not None:
+        print(f"Compared with the previous schedule ({r.problem.prev_generated:%a %m/%d %I:%M %p}): "
+              f"{len(r.changes)} change(s), {k['moves']} reshuffled minutes")
     for label, key, fmt in [("Late orders", "late", "{:.0f}"), ("On-time %", "otd_pct", "{:.0f}"),
                             ("Minutes late", "tardy_min", "{:,.0f}"), ("Setup minutes", "setup_min", "{:,.0f}"),
                             ("Overtime minutes", "overtime_min", "{:,.0f}"), ("Batches carried over", "carried_batches", "{:.0f}")]:
@@ -106,6 +118,57 @@ def cmd_override(a) -> int:
         ws.append(list(row.values()))
         wb.save(path)
     print(f"Logged override: {act} {a.order} {a.value}  reason: {a.reason}")
+    return 0
+
+
+def cmd_sample_history(a) -> int:
+    from .backtest import make_synthetic_history
+    p = make_synthetic_history(a.out, a.date)
+    print(f"Wrote FICTIONAL history: {p}\nIt exists to try the backtest. Its results say nothing about any real plant.")
+    return 0
+
+
+def cmd_standards(a) -> int:
+    from .backtest import standards_report
+    from .io import read_tables
+    rep = standards_report(read_tables(Path(a.history)))
+    o = rep["overall"]
+    pd.set_option("display.width", 200)
+    print(f"Orders compared: {int(o['n'])}   actual vs standard minutes: {o['actual_min'] / o['std_min']:.2f}x   "
+          f"within +/-20%: {o['within_20pct']:.0%}\n")
+    print("By hose type (ratio > 1 means the work takes longer than the standard says):")
+    print(rep["by_type"].round(2).to_string(index=False))
+    flagged = rep["by_part"][rep["by_part"]["flag"] != ""]
+    print(f"\n{len(flagged)} part(s) more than 15% off (3+ orders each):")
+    if len(flagged):
+        print(flagged.round(2).to_string(index=False))
+    out = Path(a.out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    rep["by_type"].to_csv(out / "standards_by_type.csv", index=False)
+    rep["by_part"].to_csv(out / "standards_by_part.csv", index=False)
+    print(f"\nWrote {out}/standards_by_type.csv and standards_by_part.csv")
+    return 0
+
+
+def cmd_backtest(a) -> int:
+    from .backtest import run_backtest, write_backtest
+    start, end = date.fromisoformat(a.start), date.fromisoformat(a.end)
+    bt = run_backtest(a.history, start, end, tuple(a.policies.split(",")), a.seconds, a.slowdown, a.tail_days, print)
+    pd.set_option("display.width", 200)
+    cols = ["policy", "orders", "on_time", "late", "unfinished", "otd_pct", "avg_hours_late", "setup_min", "overtime_min"]
+    print(f"\nOrders due {start} to {end}   (replay at {a.slowdown:.2f}x standard time)\n")
+    print(bt["summary"][cols].round(1).to_string(index=False))
+    out = Path(a.out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    f = write_backtest(bt, out / f"backtest_{start}_{end}.xlsx")
+    print(f"\nWrote {f}\nA replay is not the plant: it assumes each published day runs as planned (times the slowdown). "
+          "Use it to compare policies and sanity-check, not as a promise.")
+    return 0
+
+
+def cmd_ddl(a) -> int:
+    from .sink import ddl_tsql
+    print(ddl_tsql(a.schema))
     return 0
 
 
@@ -165,6 +228,9 @@ def main(argv=None) -> int:
     r.add_argument("--as-of", help="re-plan from this date-time, e.g. 2026-11-16T10:30")
     r.add_argument("--rule", choices=["edd", "fifo", "cr", "slack", "spt"], help="baseline dispatch rule")
     r.add_argument("--workers", type=int)
+    r.add_argument("--previous", help="previous schedule .json to stay stable against, or 'auto' (newest run for the same day in --out-dir)")
+    r.add_argument("--rules", help="rules.yaml with the scheduler's sequencing rules")
+    r.add_argument("--publish", metavar="CONFIG", help="also write the results to the database named in this config (`output:` section)")
     r.add_argument("--out-dir", default="out")
     r.add_argument("-v", "--verbose", action="store_true", help="show solver log")
     r.set_defaults(fn=cmd_run)
@@ -177,6 +243,31 @@ def main(argv=None) -> int:
     o.add_argument("--reason", required=True)
     o.add_argument("--by", default="")
     o.set_defaults(fn=cmd_override)
+
+    t = sub.add_parser("sample-history", help="write FICTIONAL order history to try the backtest")
+    t.add_argument("--out", default="examples/sample_history.xlsx")
+    t.add_argument("--date", type=lambda v: date.fromisoformat(v), default=None)
+    t.set_defaults(fn=cmd_sample_history)
+
+    t = sub.add_parser("standards", help="compare actual run minutes with the standards, by hose type and part")
+    t.add_argument("history")
+    t.add_argument("--out-dir", default="out")
+    t.set_defaults(fn=cmd_standards)
+
+    t = sub.add_parser("backtest", help="replay history day by day under each policy and compare on-time delivery")
+    t.add_argument("history")
+    t.add_argument("--start", required=True, help="first due date to score, YYYY-MM-DD")
+    t.add_argument("--end", required=True, help="last due date to score, YYYY-MM-DD")
+    t.add_argument("--policies", default="optimizer,edd,fifo", help="comma list: optimizer, edd, fifo, cr, slack, spt")
+    t.add_argument("--seconds", type=float, default=10, help="optimizer seconds per simulated day")
+    t.add_argument("--slowdown", type=float, default=1.0, help="run every job this many times slower than standard")
+    t.add_argument("--tail-days", type=int, default=3, help="working days after --end to let work finish")
+    t.add_argument("--out-dir", default="out")
+    t.set_defaults(fn=cmd_backtest)
+
+    t = sub.add_parser("ddl", help="print the T-SQL for the result tables (for a Fabric Warehouse)")
+    t.add_argument("--schema", default="dbo")
+    t.set_defaults(fn=cmd_ddl)
 
     t = sub.add_parser("mcp-tools", help="list the tools an MCP server offers (to fill in the source config)")
     t.add_argument("config")

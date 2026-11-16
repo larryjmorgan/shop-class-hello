@@ -59,10 +59,12 @@ def _expand(v, missing: list):
 def load_config(path) -> dict:
     path = Path(path)
     cfg = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    if not isinstance(cfg, dict) or "server" not in cfg:
+    if not isinstance(cfg, dict) or ("server" not in cfg and "output" not in cfg):
         raise SourceError(f"{path}: config needs a 'server:' section (see examples/fabric.example.yaml)")
     missing: list = []
-    cfg["server"] = _expand(cfg["server"], missing)      # secrets live in env vars, never in the file
+    for section in ("server", "output"):
+        if section in cfg:
+            cfg[section] = _expand(cfg[section], missing)  # secrets live in env vars, never in the file
     if missing:
         raise SourceError("Environment variable(s) not set: " + ", ".join(sorted(set(missing))))
     cfg["_dir"] = str(path.parent.resolve())
@@ -261,6 +263,21 @@ def _leaves(e: BaseException) -> list:
 
 
 def fetch_tables(cfg: dict) -> Fetched:
+    if "server" not in cfg:
+        raise SourceError("this config has no `server:` section to read from")
+    if (cfg["server"].get("transport") or "").lower() == "sql":
+        from .sql_source import SqlError, fetch_sql
+        try:
+            tables, meta = fetch_sql(cfg)
+        except SqlError as e:
+            raise SourceError(str(e)) from None
+        out = Fetched(tables, meta, now_et())
+        out.data_as_of, note = _freshness(cfg, out.tables)
+        if note:
+            out.notes.append(note)
+        if cfg.get("settings"):
+            out.tables["settings"] = pd.DataFrame([dict(key=k, value=v) for k, v in cfg["settings"].items()])
+        return out
     retries = int(cfg.get("retries", 2))
     timeout = float(cfg["server"].get("timeout_seconds", 120))
     last = None
@@ -302,12 +319,13 @@ def list_tools(cfg: dict) -> list:
                SourceError(f"{type(leaves[0]).__name__}: {str(leaves[0])[:300]}")) from None
 
 
-def load_from_config(path):
+def load_from_config(path, rules_path=None):
     """-> (InputData, Fetched). Same validation as file input."""
     cfg = load_config(path)
     got = fetch_tables(cfg)
     fallback = (got.data_as_of or got.fetched_at, None)
-    data = input_from_tables(got.tables, f"MCP: {Path(path).name}", fallback)
+    data = input_from_tables(got.tables, f"MCP: {Path(path).name}", fallback, rules=cfg.get("rules"),
+                             rules_path=rules_path or cfg.get("rules_file"), base_dir=cfg["_dir"])
     from .models import Issue
     for n in got.notes:
         data.issues.append(Issue("warn", "Data freshness", n))

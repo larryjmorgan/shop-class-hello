@@ -113,7 +113,13 @@ def build_sample(path, base: date = None, seed: int = 11) -> Path:
         ("w_setup", 20, "Penalty per setup minute."),
         ("w_overload", 30, "Penalty per minute beyond planned capacity (overtime)."),
         ("w_flow", 1, "Penalty per minute of completion time (finish sooner)."),
-        ("w_pref", 50, "Penalty for running a batch outside its preferred cell."),
+        ("w_pref", 50, "Penalty for running a batch outside its preferred cell (weighted mode)."),
+        ("objective_mode", "lexicographic", "lexicographic = goals in strict priority order; weighted = add up the w_* weights."),
+        ("priority_order", "late,tardy,carry,moves,overtime,setup,flow", "Goals, most important first. `carry` must rank above overtime and setup."),
+        ("freeze_minutes", 120, "On a re-plan (--as-of) with --previous, jobs starting within this long are frozen."),
+        ("w_move", 30, "Weighted mode: penalty per reshuffled minute versus the previous schedule."),
+        ("setup_same_tooling_min", 5, "Changeover between different parts that share a tooling_group (Parts sheet)."),
+        ("rules_file", "", "Path to rules.yaml (sequence_rank, setup_overrides). Relative to this workbook."),
     ], columns=["key", "value", "notes"])
     guide = pd.DataFrame({"sheet": ["Orders", "Parts", "Cells", "Changeover", "Overrides", "Settings"], "what it holds": [
         "One row per open order: order_id, part_number, qty, due_date, hot (Y/N), priority (1 high - 5 low), kit_ready (blank = ready), customer.",

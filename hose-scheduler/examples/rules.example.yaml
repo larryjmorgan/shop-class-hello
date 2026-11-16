@@ -1,0 +1,15 @@
+# Sequencing rules from the scheduler. ILLUSTRATIVE ONLY: these use the fictional sample part numbers.
+# Replace with the real rules (see docs/scheduler_rules_worksheet.md), then run with:
+#   python -m hosesched run inputs.xlsx --rules rules.yaml        (or set rules_file in Settings)
+
+# Hose types with a higher rank run later in a cell-day; ranks may never decrease through the day.
+# Unlisted hose types have rank 0. Example: PTFE leaves residue, so it always runs last.
+sequence_rank:
+  PTFE: 9
+
+# Exact part-to-part changeover minutes. These beat every other setup rule (same type, tooling group, matrix).
+setup_overrides:
+  - {from_part: R1-04-1050, to_part: R1-06-0250, minutes: 3}
+
+# Parts that share dies or fixtures: set `tooling_group` on the Parts sheet. A change between parts in the
+# same group costs `setup_same_tooling_min` (Settings, default 5) instead of the hose-type setup.
